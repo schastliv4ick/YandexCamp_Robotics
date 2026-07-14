@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem; // Требует установленного пакета Input System
 
 public class RobotManualTester : MonoBehaviour
 {
@@ -8,18 +9,35 @@ public class RobotManualTester : MonoBehaviour
 
     private void Update()
     {
-        // 1. Тест движения (Клавиши WASD или стрелочки)
+        // Считываем состояние клавиатуры через New Input System
+        var keyboard = Keyboard.current;
+        if (keyboard == null)
+        {
+            Debug.LogWarning("[Tester] Клавиатура недоступна!");
+            return;
+        }
+
+        // 1. Тест движения (Клавиши WASD)
         if (trackController != null)
         {
-            trackController.GasInput = Input.GetAxis("Vertical");      // W/S или Стрелки Вверх/Вниз
-            trackController.SteerInput = Input.GetAxis("Horizontal");  // A/D или Стрелки Влево/Вправо
+            float gas = 0f;
+            float steer = 0f;
+
+            if (keyboard.wKey.isPressed) gas += 1f;
+            if (keyboard.sKey.isPressed) gas -= 1f;
+            if (keyboard.aKey.isPressed) steer -= 1f;
+            if (keyboard.dKey.isPressed) steer += 1f;
+
+            // Записываем команды ввода в свойства контроллера
+            trackController.GasInput = gas;
+            trackController.SteerInput = steer;
         }
 
         // 2. Тест клешни (Зажмите Пробел, чтобы попытаться схватить мяч)
         if (gripperController != null)
         {
-            // Пока пробел зажат — шлем команду зажатия, отпустили — разжатия
-            gripperController.GripperCloseCommand = Input.GetKey(KeyCode.Space);
+            // Передаем состояние клавиши Space (True, если зажата)
+            gripperController.GripperCloseCommand = keyboard.spaceKey.isPressed;
         }
     }
 }

@@ -1,93 +1,92 @@
 using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody))]
 public class TrackController : MonoBehaviour
 {
-    [Header("Movement Calibration")]
-    [Tooltip("Базовая линейная скорость (м/с)")]
-    [SerializeField] private float moveSpeed = 0.57f;
-    
-    [Tooltip("Базовая скорость поворота (град/с или безразмерный коэффициент)")]
+    [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float turnSpeed = 120f;
-    
-    [Tooltip("Коэффициент влияния разворота на скорость гусениц")]
     [SerializeField] private float turnK = 0.30f;
-    
-    [Tooltip("Лимит поступательной скорости (м/с)")]
     [SerializeField] private float maxLinearCmd = 0.25f;
-
-    [Header("Motor Settings (PWM)")]
-    [Tooltip("Порог мертвой зоны в % PWM")]
     [SerializeField] private float motorDeadzone = 10f;
-    
-    [Tooltip("Минимальный порог старта моторов в % PWM")]
     [SerializeField] private float minMotorPwm = 35f;
-    
-    [Tooltip("Лимит изменения PWM за один физический тик (плавность)")]
     [SerializeField] private float maxPwmStep = 15f;
-    
-    [Tooltip("Масштабный коэффициент перевода скорости (м/с) в PWM")]
-    [SerializeField] private float speedToPwmMultiplier = 200f;
+    [SerializeField] private float pwmScale = 200f;
+    [SerializeField] private float acceleration = 4f;
+    [SerializeField] private float deceleration = 6f;
+    [SerializeField] private float turnAcceleration = 4f;
+    [SerializeField] private float turnDeceleration = 6f;
 
-    // Входные команды управления (диапазон [-1.0, 1.0])
+    private Rigidbody rb;
+    private float currentLinearVelocity;
+    private float currentAngularVelocity;
+
+    // ИИ или Heuristic будут записывать команды напрямую сюда
     public float GasInput { get; set; }
     public float SteerInput { get; set; }
 
-    // Выходные сглаженные значения PWM для моторов (диапазон [-100.0, 100.0])
-    public float CurrentLeftPwm { get; private set; }
-    public float CurrentRightPwm { get; private set; }
-
-    // Расчетные физические скорости бортов (м/с), доступны для чтения
-    public float LeftSpeed { get; private set; }
-    public float RightSpeed { get; private set; }
+    private void Awake()
+    {
+        rb = GetComponent<Rigidbody>();
+    }
 
     private void FixedUpdate()
     {
-        CalculateTrackOutputs();
-    }
+        // Читаем значения из свойств, а не с клавиатуры
+        float steer = Mathf.Clamp(SteerInput, -1f, 1f);
+        float gas = Mathf.Clamp(GasInput, -1f, 1f);
 
-    private void CalculateTrackOutputs()
-    {
-        // 1. Расчет и ограничение линейной скорости
-        float targetLinearSpeed = GasInput * moveSpeed;
-        targetLinearSpeed = Mathf.Clamp(targetLinearSpeed, -maxLinearCmd, maxLinearCmd);
+        float targetLinear = Mathf.Clamp(gas * maxLinearCmd, -maxLinearCmd, maxLinearCmd);
+        float targetAngular = Mathf.Clamp(steer * turnK, -1f, 1f);
 
-        // 2. Расчет угловой составляющей скорости
-        // Нюанс: если turnSpeed равен 120, прямое умножение (steer * 120 * 0.3) даст 36 м/с.
-        // Для физической корректности переводим угловую скорость в радианы (или трактуем как масштаб).
-        float angularSpeedRad = turnSpeed * Mathf.Deg2Rad;
-        float targetAngularSpeed = SteerInput * angularSpeedRad * turnK;
+        float linearAccelRate = Mathf.Abs(targetLinear) > 0.0001f ? acceleration : deceleration;
+        float angularAccelRate = Mathf.Abs(targetAngular) > 0.0001f ? turnAcceleration : turnDeceleration;
 
-        // 3. Смешивание скоростей (дифференциальный привод)
-        LeftSpeed = targetLinearSpeed + targetAngularSpeed;
-        RightSpeed = targetLinearSpeed - targetAngularSpeed;
+        currentLinearVelocity = Mathf.MoveTowards(currentLinearVelocity, targetLinear, linearAccelRate * Time.fixedDeltaTime);
+        currentAngularVelocity = Mathf.MoveTowards(currentAngularVelocity, targetAngular, angularAccelRate * Time.fixedDeltaTime);
 
-        // 4. Перевод физической скорости (м/с) в сырой PWM
-        float targetLeftPwmRaw = LeftSpeed * speedToPwmMultiplier;
-        float targetRightPwmRaw = RightSpeed * speedToPwmMultiplier;
+        float leftCmd = Mathf.Clamp(currentLinearVelocity + currentAngularVelocity, -maxLinearCmd, maxLinearCmd);
+        float rightCmd = Mathf.Clamp(currentLinearVelocity - currentAngularVelocity, -maxLinearCmd, maxLinearCmd);
 
-        // 5. Применение логики мертвой зоны и минимального PWM
-        float targetLeftPwm = ProcessPwmDeadzoneAndLimits(targetLeftPwmRaw);
-        float targetRightPwm = ProcessPwmDeadzoneAndLimits(targetRightPwmRaw);
+        float leftPwm = ConvertCmdToPwm(leftCmd);
+        float rightPwm = ConvertCmdToPwm(rightCmd);
 
-        // 6. Ограничение скорости нарастания сигнала (темп разгона) за тик
-        CurrentLeftPwm = Mathf.MoveTowards(CurrentLeftPwm, targetLeftPwm, maxPwmStep);
-        CurrentRightPwm = Mathf.MoveTowards(CurrentRightPwm, targetRightPwm, maxPwmStep);
-    }
+        float leftSpeed = PwmToSpeed(leftPwm);
+        float rightSpeed = PwmToSpeed(rightPwm);
 
-    private float ProcessPwmDeadzoneAndLimits(float rawPwm)
-    {
-        float absPwm = Mathf.Abs(rawPwm);
+        float linearSpeed = (leftSpeed + rightSpeed) * 0.5f;
+        float angularSpeed = (leftSpeed - rightSpeed) * 0.5f;
 
-        // Если сигнал меньше мертвой зоны — мотор стоит
-        if (absPwm < motorDeadzone)
+        Vector3 movement = transform.forward * linearSpeed * Time.fixedDeltaTime;
+        Quaternion rotationDelta = Quaternion.Euler(0f, angularSpeed * turnSpeed * Time.fixedDeltaTime, 0f);
+
+        if (Mathf.Abs(linearSpeed) < 0.0001f && Mathf.Abs(angularSpeed) < 0.0001f)
         {
-            return 0f;
+            return;
         }
 
-        // Если выше — подтягиваем к minMotorPwm и ограничиваем максимумом в 100%
-        float clampedPwm = Mathf.Clamp(absPwm, minMotorPwm, 100f);
+        if (rb != null)
+        {
+            rb.MovePosition(rb.position + movement);
+            rb.MoveRotation(rb.rotation * rotationDelta);
+        }
+        else
+        {
+            transform.position += movement;
+            transform.rotation *= rotationDelta;
+        }
+    }
 
-        // Возвращаем исходное направление вращения (знак)
-        return clampedPwm * Mathf.Sign(rawPwm);
+    private float ConvertCmdToPwm(float command)
+    {
+        if (Mathf.Abs(command) < 0.0001f) return 0f;
+        float pwm = Mathf.Abs(command) * pwmScale;
+        if (pwm < motorDeadzone) return 0f;
+        if (pwm < minMotorPwm) pwm = minMotorPwm;
+        return Mathf.Clamp(pwm, 0f, 100f) * Mathf.Sign(command);
+    }
+
+    private float PwmToSpeed(float pwm)
+    {
+        return (pwm / pwmScale) * moveSpeed;
     }
 }
