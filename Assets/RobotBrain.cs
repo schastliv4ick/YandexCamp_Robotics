@@ -32,6 +32,9 @@ public class RobotBrain : Agent
     [SerializeField] private float successReward = 5.0f;
     [SerializeField] private float fallPenalty = 1.0f;
 
+    private int burstDropoutRemaining = 0;
+    private float lastDetectionTime = 0;
+
     private const float gamma = 0.99f; // sync gamma with config.yaml
     private float prevPotential;
 
@@ -43,7 +46,6 @@ public class RobotBrain : Agent
     private float prevGas;
     private float prevSteer;
     private float lastKnownBallAngle;
-    private float timeSinceLastDetection;
     private float cameraPivotAngle;
 
     private Vector3 startBallScale;
@@ -109,7 +111,7 @@ public class RobotBrain : Agent
         prevGas = 0f;
         prevSteer = 0f;
         lastKnownBallAngle = 0f;
-        timeSinceLastDetection = 0f;
+        lastDetectionTime = Time.time;
         cameraPivotAngle = 0f;
 
         if (targetBall != null)
@@ -166,30 +168,56 @@ public class RobotBrain : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        sensor.AddObservation(virtualSensors != null ? virtualSensors.USNormalizedDistance : 1f);
-        sensor.AddObservation(virtualSensors != null ? virtualSensors.LeftIRObstacle : 0f);
-        sensor.AddObservation(virtualSensors != null ? virtualSensors.RightIRObstacle : 0f);
-        sensor.AddObservation(virtualSensors != null ? virtualSensors.GripperIRBallDetected : 0f);
+        if (virtualSensors == null || yoloCamera == null || gripperController == null) return;
 
-        bool ballVisible = yoloCamera != null && yoloCamera.IsBallVisible;
-        if (ballVisible) lastKnownBallAngle = yoloCamera.RelativeAngle;
+        // 1. УЛЬТРАЗВУК С ШУМОМ
+        // Подмешиваем случайную погрешность в пределах +-5% к нормализованной дистанции
+        float noiseUS = Academy.Instance.IsCommunicatorOn ? UnityEngine.Random.Range(-0.05f, 0.05f) : 0f;
+        float noisyDistance = Mathf.Clamp01(virtualSensors.USNormalizedDistance + noiseUS);
+        sensor.AddObservation(noisyDistance); // 0 (УЗ дальномер с шумом)
+        
+        // Боковые ИК датчики оставляем бинарными (1 или 0)
+        sensor.AddObservation(virtualSensors.LeftIRObstacle);  // 1
+        sensor.AddObservation(virtualSensors.RightIRObstacle); // 2
+        sensor.AddObservation(virtualSensors.GripperIRBallDetected); // 3
 
-        sensor.AddObservation(ballVisible ? yoloCamera.RelativeAngle : 0f);
-        sensor.AddObservation(yoloCamera != null ? yoloCamera.NormalizedDistance : 1f);
-        sensor.AddObservation(lastKnownBallAngle);
-        sensor.AddObservation(ballVisible ? 1f : 0f);
-        sensor.AddObservation(cameraPivotMaxAngle > 0f ? cameraPivotAngle / cameraPivotMaxAngle : 0f);
-        sensor.AddObservation(gripperController != null && gripperController.IsHolding ? 1f : 0f);
+        // 2. СИМУЛЯЦИЯ ПОТЕРЬ КАДРОВ YOLO (Burst Dropout)
+        // Если счетчик активен — уменьшаем его на 1 за каждый физический тик
+        if (burstDropoutRemaining > 0) burstDropoutRemaining--;
+        // Если робот крутится на месте быстрее 0.5 рад/с — с шансом 15% активируем слепую зону на 5-15 шагов
+        else if (Academy.Instance.IsCommunicatorOn && rb != null && rb.angularVelocity.magnitude > 0.5f)
+        {
+            if (UnityEngine.Random.value < 0.15f) burstDropoutRemaining = UnityEngine.Random.Range(5, 16);
+        }
 
+        // Переопределяем видимость мяча с учетом симулированного лага камеры
+        bool ballVisible = yoloCamera.IsBallVisible && !(burstDropoutRemaining > 0);
+        if (ballVisible) 
+        {
+            lastDetectionTime = Time.time;
+            lastKnownBallAngle = yoloCamera.RelativeAngle;
+        }
+        
+        // Отправляем данные камеры в нейросеть
+        sensor.AddObservation(ballVisible ? yoloCamera.RelativeAngle : 0f);  // 4 (угол до мяча)
+        sensor.AddObservation(ballVisible ? yoloCamera.NormalizedDistance : 1f); // 5 (дистанция до мяча)
+        sensor.AddObservation(lastKnownBallAngle);                       // 6
+        sensor.AddObservation(ballVisible ? 1.0f : 0.0f);                       // 7
+        sensor.AddObservation(cameraPivotMaxAngle > 0f ? cameraPivotAngle / cameraPivotMaxAngle : 0f); // 8
+        
+        // Оставшиеся наблюдения (состояние клешни, смещение, одометрия) отправляем без изменений
+        sensor.AddObservation(gripperController.IsHolding ? 1f : 0f); // 9
+        
         Vector3 offset = transform.position - startPosition;
-        sensor.AddObservation(offset.x);
-        sensor.AddObservation(offset.z);
-        sensor.AddObservation(Mathf.DeltaAngle(0f, transform.eulerAngles.y) / 180f);
-        sensor.AddObservation(rb.linearVelocity.magnitude);
-
-        if (ballVisible) timeSinceLastDetection = 0f;
-        else timeSinceLastDetection += Time.fixedDeltaTime;
-        sensor.AddObservation(timeSinceLastDetection);
+        // TODO верно что дальше 5и метров не уедем?
+        const float maxOffset = 5f;
+        sensor.AddObservation(Mathf.Clamp(offset.x / maxOffset, -1f, 1f));               // 10
+        sensor.AddObservation(Mathf.Clamp(offset.z / maxOffset, -1f, 1f));               // 11
+        sensor.AddObservation(transform.eulerAngles.y / 360f);                          // 12
+        sensor.AddObservation(Mathf.Clamp01(rb.linearVelocity.magnitude / 0.5f));        // 13
+        
+        float timeSinceLastDetection = Time.time - lastDetectionTime;;
+        sensor.AddObservation(timeSinceLastDetection);                                           // 14
     }
 
     public override void OnActionReceived(ActionBuffers actions)
