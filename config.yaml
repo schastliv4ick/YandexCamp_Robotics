@@ -1,3 +1,6 @@
+env_settings:
+  num_areas: 100
+
 behaviors:
   GFSX_Brain:
     trainer_type: ppo

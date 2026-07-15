@@ -82,25 +82,14 @@ public class RobotBrain : Agent
         if (targetBall != null)
         {
             float d = Vector3.Distance(transform.position, targetBall.position);
-            phiGoal = -goalPotentialScale / (d + goalPotentialEps);
+            phiGoal = goalPotentialScale / (d + goalPotentialEps);
         }
 
         float phiAlign = 0f;
         if (yoloCamera != null && yoloCamera.IsBallVisible)
             phiAlign = alignPotentialScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle));
 
-        float phiObstacle = 0f;
-        if (virtualSensors != null)
-        {
-            float us = virtualSensors.USNormalizedDistance;
-            if (us < obstacleSafeDistance)
-            {
-                float danger = (obstacleSafeDistance - us) / obstacleSafeDistance;
-                phiObstacle = -obstaclePotentialScale * danger * danger;
-            }
-        }
-
-        return phiGoal + phiAlign + phiObstacle;
+        return phiGoal + phiAlign;
     }
 
     private void CalculateRewards(float gas, float steer)
@@ -126,6 +115,11 @@ public class RobotBrain : Agent
         {
             AddReward(successReward);
             EndEpisode();
+        }
+        if (virtualSensors != null && virtualSensors.USNormalizedDistance < obstacleSafeDistance)
+        {
+            float danger = (obstacleSafeDistance - virtualSensors.USNormalizedDistance) / obstacleSafeDistance;
+            AddReward(-obstaclePotentialScale * danger * danger * Time.fixedDeltaTime);
         }
     }
 
