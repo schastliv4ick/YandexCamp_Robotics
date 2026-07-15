@@ -180,49 +180,6 @@ public class RobotBrain : Agent
         prevSteer = steer;
     }
 
-    // private void CalculateRewards(float gas, float steer)
-    // {
-    //     if (targetBall == null) return;
-
-    //     float currentDistance = Vector3.Distance(transform.position, targetBall.position);
-
-    //     if (currentDistance < prevDistanceToBall)
-    //     {
-    //         float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
-    //         AddReward(rewardScale);
-    //     }
-
-    //     float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
-    //     AddReward(-actionRatePenalty * actionMagnitude);
-
-    //     bool ballVisible = yoloCamera != null && yoloCamera.IsBallVisible;
-    //     if (ballVisible)
-    //     {
-    //         float relativeAngle = Mathf.Abs(yoloCamera.RelativeAngle);
-    //         AddReward(centeringRewardScale * (1f - relativeAngle));
-    //     }
-
-    //     if (virtualSensors != null)
-    //     {
-    //         if (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f)
-    //             AddReward(-obstaclePenalty);
-    //     }
-
-    //     if (transform.position.y < fallHeightThreshold)
-    //     {
-    //         AddReward(fallPenalty);
-    //         EndEpisode();
-    //     }
-
-    //     if (gripperController != null && gripperController.IsHolding)
-    //     {
-    //         AddReward(successReward);
-    //         EndEpisode();
-    //     }
-
-    //     prevDistanceToBall = currentDistance;
-    // }
-
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         var ca = actionsOut.ContinuousActions;
