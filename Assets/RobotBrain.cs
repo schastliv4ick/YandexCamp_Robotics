@@ -21,16 +21,19 @@ public class RobotBrain : Agent
     [SerializeField] private float cameraPivotMaxAngle = 45f;
     [SerializeField] private float cameraPivotSpeed = 60f;
 
-    [Header("Reward Weights")]
-    [SerializeField] private float distanceRewardFar = 0.01f;
-    [SerializeField] private float distanceRewardNear = 0.03f;
-    [SerializeField] private float nearDistanceThreshold = 0.5f;
+    [Header("Rewards")]
+    [SerializeField] private float goalPotentialScale = 0.3f;
+    [SerializeField] private float goalPotentialEps = 0.3f;
+    [SerializeField] private float alignPotentialScale = 0.1f;
+    [SerializeField] private float obstaclePotentialScale = 0.5f;
+    [SerializeField] private float obstacleSafeDistance = 0.3f;
     [SerializeField] private float actionRatePenalty = 0.01f;
-    [SerializeField] private float centeringRewardScale = 0.005f;
-    [SerializeField] private float obstaclePenalty = 0.02f;
-    [SerializeField] private float obstacleCriticalDistance = 0.2f;
+    [SerializeField] private float irCollisionPenalty = 0.02f;
     [SerializeField] private float successReward = 5.0f;
-    [SerializeField] private float fallPenalty = -1.0f;
+    [SerializeField] private float fallPenalty = 1.0f;
+
+    private const float gamma = 0.99f; // sync gamma with config.yaml
+    private float prevPotential;
 
     private Rigidbody rb;
     private Vector3 startPosition;
@@ -69,7 +72,61 @@ public class RobotBrain : Agent
         cameraPivotAngle = 0f;
 
         if (targetBall != null)
-            prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
+            // prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
+            prevPotential = ComputeStatePotential();
+    }
+
+    private float ComputeStatePotential()
+    {
+        float phiGoal = 0f;
+        if (targetBall != null)
+        {
+            float d = Vector3.Distance(transform.position, targetBall.position);
+            phiGoal = -goalPotentialScale / (d + goalPotentialEps);
+        }
+
+        float phiAlign = 0f;
+        if (yoloCamera != null && yoloCamera.IsBallVisible)
+            phiAlign = alignPotentialScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle));
+
+        float phiObstacle = 0f;
+        if (virtualSensors != null)
+        {
+            float us = virtualSensors.USNormalizedDistance;
+            if (us < obstacleSafeDistance)
+            {
+                float danger = (obstacleSafeDistance - us) / obstacleSafeDistance;
+                phiObstacle = -obstaclePotentialScale * danger * danger;
+            }
+        }
+
+        return phiGoal + phiAlign + phiObstacle;
+    }
+
+    private void CalculateRewards(float gas, float steer)
+    {
+        float currentPotential = ComputeStatePotential();
+        AddReward(gamma * currentPotential - prevPotential);
+        prevPotential = currentPotential;
+
+        float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
+        AddReward(-actionRatePenalty * actionMagnitude);
+
+        if (virtualSensors != null && (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f))
+            AddReward(-irCollisionPenalty);
+
+        if (transform.position.y < fallHeightThreshold)
+        {
+            AddReward(-fallPenalty);
+            EndEpisode();
+            return;
+        }
+
+        if (gripperController != null && gripperController.IsHolding)
+        {
+            AddReward(successReward);
+            EndEpisode();
+        }
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -129,48 +186,48 @@ public class RobotBrain : Agent
         prevSteer = steer;
     }
 
-    private void CalculateRewards(float gas, float steer)
-    {
-        if (targetBall == null) return;
+    // private void CalculateRewards(float gas, float steer)
+    // {
+    //     if (targetBall == null) return;
 
-        float currentDistance = Vector3.Distance(transform.position, targetBall.position);
+    //     float currentDistance = Vector3.Distance(transform.position, targetBall.position);
 
-        if (currentDistance < prevDistanceToBall)
-        {
-            float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
-            AddReward(rewardScale);
-        }
+    //     if (currentDistance < prevDistanceToBall)
+    //     {
+    //         float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
+    //         AddReward(rewardScale);
+    //     }
 
-        float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
-        AddReward(-actionRatePenalty * actionMagnitude);
+    //     float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
+    //     AddReward(-actionRatePenalty * actionMagnitude);
 
-        bool ballVisible = yoloCamera != null && yoloCamera.IsBallVisible;
-        if (ballVisible)
-        {
-            float relativeAngle = Mathf.Abs(yoloCamera.RelativeAngle);
-            AddReward(centeringRewardScale * (1f - relativeAngle));
-        }
+    //     bool ballVisible = yoloCamera != null && yoloCamera.IsBallVisible;
+    //     if (ballVisible)
+    //     {
+    //         float relativeAngle = Mathf.Abs(yoloCamera.RelativeAngle);
+    //         AddReward(centeringRewardScale * (1f - relativeAngle));
+    //     }
 
-        if (virtualSensors != null)
-        {
-            if (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f)
-                AddReward(-obstaclePenalty);
-        }
+    //     if (virtualSensors != null)
+    //     {
+    //         if (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f)
+    //             AddReward(-obstaclePenalty);
+    //     }
 
-        if (transform.position.y < fallHeightThreshold)
-        {
-            AddReward(fallPenalty);
-            EndEpisode();
-        }
+    //     if (transform.position.y < fallHeightThreshold)
+    //     {
+    //         AddReward(fallPenalty);
+    //         EndEpisode();
+    //     }
 
-        if (gripperController != null && gripperController.IsHolding)
-        {
-            AddReward(successReward);
-            EndEpisode();
-        }
+    //     if (gripperController != null && gripperController.IsHolding)
+    //     {
+    //         AddReward(successReward);
+    //         EndEpisode();
+    //     }
 
-        prevDistanceToBall = currentDistance;
-    }
+    //     prevDistanceToBall = currentDistance;
+    // }
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
