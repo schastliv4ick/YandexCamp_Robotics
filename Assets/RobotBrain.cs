@@ -2,6 +2,7 @@ using UnityEngine;
 using Unity.MLAgents;
 using Unity.MLAgents.Sensors;
 using Unity.MLAgents.Actuators;
+using System.IO;
 
 [RequireComponent(typeof(Rigidbody))]
 public class RobotBrain : Agent
@@ -32,6 +33,13 @@ public class RobotBrain : Agent
     [SerializeField] private float successReward = 5.0f;
     [SerializeField] private float fallPenalty = 1.0f;
 
+    [Header("CSV-логирование пути и действий (для отладки, НЕ включать на долгий тренинг!)")]
+    [SerializeField] private bool enableCsvLogging = false;
+
+    private StreamWriter csvWriter;
+    private int episodeIndex = -1;
+    private int stepIndex;
+
     private const float gamma = 0.99f; // sync gamma with config.yaml
     private float prevPotential;
 
@@ -46,15 +54,46 @@ public class RobotBrain : Agent
     private float timeSinceLastDetection;
     private float cameraPivotAngle;
 
+    private float episodeShapingSum;
+    private float episodeActionRateSum;
+    private float episodeIrPenaltySum;
+    private int totalPickupCount;      // сырой счётчик за всё время обучения
+    private float episodePickupFlag;   // 1, если завершившийся эпизод закончился успешным подъёмом мяча
+
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
         startPosition = transform.position;
         startRotation = transform.rotation;
+
+        if (enableCsvLogging)
+        {
+            string logDir = Path.Combine(Application.dataPath, "..", "TrainingLogs");
+            Directory.CreateDirectory(logDir);
+            string fileName = $"episode_log_{gameObject.GetInstanceID()}.csv";
+            csvWriter = new StreamWriter(Path.Combine(logDir, fileName), append: false);
+            csvWriter.WriteLine("episode,step,time,x,z,heading,gas,steer,gripperCmd,potential");
+        }
     }
 
     public override void OnEpisodeBegin()
     {
+        episodeIndex++;
+        stepIndex = 0;
+
+        var stats = Academy.Instance.StatsRecorder;
+        
+        stats.Add("RewardComponents/Shaping", episodeShapingSum);
+        stats.Add("RewardComponents/ActionRatePenalty", episodeActionRateSum);
+        stats.Add("RewardComponents/IRPenalty", episodeIrPenaltySum);
+        stats.Add("Metrics/PickupSuccessRate", episodePickupFlag);
+        stats.Add("Metrics/TotalPickups", totalPickupCount);
+
+        episodeShapingSum = 0f;
+        episodeActionRateSum = 0f;
+        episodeIrPenaltySum = 0f;
+        episodePickupFlag = 0f;
+
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
         transform.SetPositionAndRotation(startPosition, startRotation);
@@ -82,7 +121,7 @@ public class RobotBrain : Agent
         if (targetBall != null)
         {
             float d = Vector3.Distance(transform.position, targetBall.position);
-            phiGoal = -goalPotentialScale / (d + goalPotentialEps);
+            phiGoal = goalPotentialScale / (d + goalPotentialEps) ** 2;
         }
 
         float phiAlign = 0f;
@@ -106,15 +145,21 @@ public class RobotBrain : Agent
     private void CalculateRewards(float gas, float steer)
     {
         float currentPotential = ComputeStatePotential();
-        AddReward(gamma * currentPotential - prevPotential);
+        float shapingReward = gamma * currentPotential - prevPotential;
+        AddReward(shapingReward);
+        episodeShapingSum += shapingReward;
         prevPotential = currentPotential;
 
         float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
-        AddReward(-actionRatePenalty * actionMagnitude);
+        float rateP = -actionRatePenalty * actionMagnitude;
+        AddReward(rateP);
+        episodeActionRateSum += rateP;
 
-        if (virtualSensors != null && (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f))
+        if (virtualSensors != null && (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f)) 
+        {
             AddReward(-irCollisionPenalty);
-
+            episodeIrPenaltySum += -irCollisionPenalty;
+        }
         if (transform.position.y < fallHeightThreshold)
         {
             AddReward(-fallPenalty);
@@ -125,6 +170,8 @@ public class RobotBrain : Agent
         if (gripperController != null && gripperController.IsHolding)
         {
             AddReward(successReward);
+            episodePickupFlag = 1f;
+            totalPickupCount++;
             EndEpisode();
         }
     }
@@ -182,52 +229,16 @@ public class RobotBrain : Agent
         }
 
         CalculateRewards(gas, steer);
+        if (enableCsvLogging && csvWriter != null)
+        {
+            csvWriter.WriteLine($"{episodeIndex},{stepIndex},{Time.time:F2}," +
+                $"{transform.position.x:F3},{transform.position.z:F3},{transform.eulerAngles.y:F1}," +
+                $"{gas:F2},{steer:F2},{gripperCommand},{prevPotential:F4}");
+            stepIndex++;
+        }
         prevGas = gas;
         prevSteer = steer;
     }
-
-    // private void CalculateRewards(float gas, float steer)
-    // {
-    //     if (targetBall == null) return;
-
-    //     float currentDistance = Vector3.Distance(transform.position, targetBall.position);
-
-    //     if (currentDistance < prevDistanceToBall)
-    //     {
-    //         float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
-    //         AddReward(rewardScale);
-    //     }
-
-    //     float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
-    //     AddReward(-actionRatePenalty * actionMagnitude);
-
-    //     bool ballVisible = yoloCamera != null && yoloCamera.IsBallVisible;
-    //     if (ballVisible)
-    //     {
-    //         float relativeAngle = Mathf.Abs(yoloCamera.RelativeAngle);
-    //         AddReward(centeringRewardScale * (1f - relativeAngle));
-    //     }
-
-    //     if (virtualSensors != null)
-    //     {
-    //         if (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f)
-    //             AddReward(-obstaclePenalty);
-    //     }
-
-    //     if (transform.position.y < fallHeightThreshold)
-    //     {
-    //         AddReward(fallPenalty);
-    //         EndEpisode();
-    //     }
-
-    //     if (gripperController != null && gripperController.IsHolding)
-    //     {
-    //         AddReward(successReward);
-    //         EndEpisode();
-    //     }
-
-    //     prevDistanceToBall = currentDistance;
-    // }
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
@@ -238,5 +249,11 @@ public class RobotBrain : Agent
 
         var da = actionsOut.DiscreteActions;
         da[0] = Input.GetKey(KeyCode.Space) ? 1 : (Input.GetKey(KeyCode.LeftShift) ? 2 : 0);
+    }
+
+    private void OnDestroy()
+    {
+        csvWriter?.Flush();
+        csvWriter?.Close();
     }
 }
