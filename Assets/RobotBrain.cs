@@ -14,7 +14,7 @@ public class RobotBrain : Agent
     [SerializeField] private Transform cameraPivot;
 
     [Header("Target")]
-    [SerializeField] private Transform targetBall;
+    [SerializeField] private Rigidbody targetBall;
 
     [Header("Settings")]
     [SerializeField] private float fallHeightThreshold = -1f;
@@ -46,15 +46,56 @@ public class RobotBrain : Agent
     private float timeSinceLastDetection;
     private float cameraPivotAngle;
 
+    private Vector3 startBallScale;
+    private float startBallMass;
+    private Vector3 startBallLocalPosition; 
+
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
+
         startPosition = transform.position;
         startRotation = transform.rotation;
+
+        if (targetBall != null)
+        {
+            startBallScale = targetBall.transform.localScale;
+            startBallMass = targetBall.mass;
+            startBallLocalPosition = targetBall.transform.localPosition;
+        }
     }
+
+    public void ResetBall()
+    {
+        if (targetBall == null) return;
+        
+        targetBall.transform.localPosition = startBallLocalPosition;
+        targetBall.mass = startBallMass * (1.0f + UnityEngine.Random.Range(0.0f, 1.0f));
+        targetBall.transform.localScale = startBallScale * (1.0f + UnityEngine.Random.Range(-0.2f, 0.2f));
+        targetBall.linearVelocity = Vector3.zero;
+        targetBall.angularVelocity = Vector3.zero;
+    }
+
 
     public override void OnEpisodeBegin()
     {
+        ResetBall();
+        if (Academy.Instance.IsCommunicatorOn)
+        {
+            if (rb != null)
+            {
+                // Рандомизируем массу робота от 1.0кг до 4.0кг (базовый вес 2.5кг)
+                rb.mass = UnityEngine.Random.Range(1.0f, 4.0f);
+            }
+            if (trackController != null)
+            {
+                // Меняем динамические характеристики двигателей
+                trackController.moveSpeed = UnityEngine.Random.Range(0.3f, 0.7f);   // базовый м/с +-40%
+                trackController.turnSpeed = UnityEngine.Random.Range(80f, 160f);    // скорость вращения
+                trackController.smoothing = UnityEngine.Random.Range(0.01f, 0.25f); // инерция привода
+            }
+        }
+
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
         transform.SetPositionAndRotation(startPosition, startRotation);
