@@ -34,7 +34,7 @@ public class VirtualSensors : MonoBehaviour
     public float RightIRObstacle { get; private set; } = 0f;        // 1 (стена) или 0 (чисто)
     public float GripperIRBallDetected { get; private set; } = 0f;  // 1 (мяч обнаружен) или 0 (пусто)
 
-    private void Update()
+    private void FixedUpdate()
     {
         UpdateUltrasonicSensor();
         UpdateIRObstacleSensors();
