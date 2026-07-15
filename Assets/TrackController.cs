@@ -3,8 +3,8 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class TrackController : MonoBehaviour
 {
-    [SerializeField] private float moveSpeed = 5f;
-    [SerializeField] private float turnSpeed = 120f;
+    [SerializeField] public float moveSpeed = 5f;
+    [SerializeField] public float turnSpeed = 120f;
     [SerializeField] private float turnK = 0.30f;
     [SerializeField] private float maxLinearCmd = 0.25f;
     [SerializeField] private float motorDeadzone = 10f;

@@ -2,6 +2,7 @@ using UnityEngine;
 using Unity.MLAgents;
 using Unity.MLAgents.Sensors;
 using Unity.MLAgents.Actuators;
+using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody))]
 public class RobotBrain : Agent
@@ -31,6 +32,10 @@ public class RobotBrain : Agent
     [SerializeField] private float irCollisionPenalty = 0.02f;
     [SerializeField] private float successReward = 5.0f;
     [SerializeField] private float fallPenalty = 1.0f;
+
+    private Queue<float[]> actionBuffer = new Queue<float[]>();
+    private int currentActionLatency = 5;
+    private int holdTicks = 0;
 
     private int burstDropoutRemaining = 0;
     private float lastDetectionTime = 0;
@@ -81,6 +86,8 @@ public class RobotBrain : Agent
 
     public override void OnEpisodeBegin()
     {
+
+        
         ResetBall();
         if (Academy.Instance.IsCommunicatorOn)
         {
@@ -94,7 +101,8 @@ public class RobotBrain : Agent
                 // Меняем динамические характеристики двигателей
                 trackController.moveSpeed = UnityEngine.Random.Range(0.3f, 0.7f);   // базовый м/с +-40%
                 trackController.turnSpeed = UnityEngine.Random.Range(80f, 160f);    // скорость вращения
-                trackController.smoothing = UnityEngine.Random.Range(0.01f, 0.25f); // инерция привода
+                // TODO Будем реализовывать сглаживание внутри trackcontroller?
+                // trackController.smoothing = UnityEngine.Random.Range(0.01f, 0.25f); // инерция привода
             }
         }
 
@@ -117,6 +125,14 @@ public class RobotBrain : Agent
         if (targetBall != null)
             // prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
             prevPotential = ComputeStatePotential();
+        
+        holdTicks = 0;
+        currentActionLatency = Academy.Instance.IsCommunicatorOn ? UnityEngine.Random.Range(8, 14) : 0;
+        actionBuffer.Clear();
+        for (int i = 0; i < currentActionLatency; i++)
+        {
+            actionBuffer.Enqueue(new float[] { 0f, 0f, 0f });
+        }
     }
 
     private float ComputeStatePotential()
@@ -154,11 +170,6 @@ public class RobotBrain : Agent
             return;
         }
 
-        if (gripperController != null && gripperController.IsHolding)
-        {
-            AddReward(successReward);
-            EndEpisode();
-        }
         if (virtualSensors != null && virtualSensors.USNormalizedDistance < obstacleSafeDistance)
         {
             float danger = (obstacleSafeDistance - virtualSensors.USNormalizedDistance) / obstacleSafeDistance;
@@ -216,21 +227,61 @@ public class RobotBrain : Agent
         sensor.AddObservation(transform.eulerAngles.y / 360f);                          // 12
         sensor.AddObservation(Mathf.Clamp01(rb.linearVelocity.magnitude / 0.5f));        // 13
         
-        float timeSinceLastDetection = Time.time - lastDetectionTime;;
+        float timeSinceLastDetection = Time.time - lastDetectionTime;
         sensor.AddObservation(timeSinceLastDetection);                                           // 14
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
-        float gas = Mathf.Clamp(actions.ContinuousActions[0], -1f, 1f);
-        float steer = Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
-        float cameraSignal = Mathf.Clamp(actions.ContinuousActions[2], -1f, 1f);
+        if (gripperController != null && gripperController.IsHolding)
+        {
+            if(trackController != null)
+            {
+                trackController.GasInput = 0;
+                trackController.SteerInput = 0;
+            }
+            holdTicks++;
+            AddReward(0.02f);
+            if (holdTicks >= 50)
+            {
+                AddReward(successReward);
+                EndEpisode();
+            }
+            return;
+        }
+        else holdTicks = 0;
+
+        float gas, steer, cameraSignal;
+        if (Academy.Instance.IsCommunicatorOn && currentActionLatency > 0)
+        {
+            // Кладем свежее действие нейросети в конец очереди
+            float[] newActions = new float[] {
+                Mathf.Clamp(actions.ContinuousActions[0], -1f, 1f),
+                Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f),
+                Mathf.Clamp(actions.ContinuousActions[2], -1f, 1f)
+            };
+            actionBuffer.Enqueue(newActions);
+
+            // Достаем устаревшее на N шагов действие из начала очереди
+            float[] delayed = actionBuffer.Dequeue();
+            gas = delayed[0];
+            steer = delayed[1];
+            cameraSignal = delayed[2];
+        }
+        else
+        {
+            // Без задержки (для ручного управления или инференса на реальном роботе)
+            gas = Mathf.Clamp(actions.ContinuousActions[0], -1f, 1f);
+            steer = Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
+            cameraSignal = Mathf.Clamp(actions.ContinuousActions[2], -1f, 1f);
+        }
 
         if (trackController != null)
         {
             trackController.GasInput = gas;
             trackController.SteerInput = steer;
         }
+
 
         cameraPivotAngle = Mathf.Clamp(cameraPivotAngle + cameraSignal * cameraPivotSpeed * Time.fixedDeltaTime,
             -cameraPivotMaxAngle, cameraPivotMaxAngle);
