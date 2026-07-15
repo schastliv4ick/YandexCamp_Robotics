@@ -27,6 +27,10 @@ public class TrackController : MonoBehaviour
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
+        rb.linearDamping = 9f;
+        rb.angularDamping = 9f;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+        rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
     }
 
     private void FixedUpdate()
