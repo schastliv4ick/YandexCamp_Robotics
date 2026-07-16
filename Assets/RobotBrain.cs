@@ -174,12 +174,7 @@ public class RobotBrain : Agent
             float d = Vector3.Distance(transform.position, targetBall.position);
             phiGoal = goalPotentialScale / (d + goalPotentialEps);
         }
-
-        float phiAlign = 0f;
-        if (yoloCamera != null && yoloCamera.IsBallVisible)
-            phiAlign = alignPotentialScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle));
-
-        return phiGoal + phiAlign;
+        return phiGoal;
     }
 
     private void CalculateRewards(float gas, float steer)
@@ -215,6 +210,13 @@ public class RobotBrain : Agent
         }
         wasBallVisible = ballVisible;
 
+        if (yoloCamera != null && yoloCamera.IsBallVisible)
+        {
+            // Домножаем на Time.fixedDeltaTime, чтобы робот не "фармил" очки, просто стоя и глядя на мяч
+            float alignBonus = alignPotentialScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle));
+            AddReward(alignBonus * Time.fixedDeltaTime);
+        }
+
         // Награда за исследование новых зон, только пока мяч не виден (Идея Б)
         if (!ballVisible)
         {
@@ -244,6 +246,7 @@ public class RobotBrain : Agent
             float danger = (obstacleSafeDistance - virtualSensors.USNormalizedDistance) / obstacleSafeDistance;
             AddReward(-obstaclePotentialScale * danger * danger * Time.fixedDeltaTime);
         }
+        AddReward(-1f / 4000f);
     }
 
     public override void CollectObservations(VectorSensor sensor)
