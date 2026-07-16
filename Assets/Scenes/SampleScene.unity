@@ -432,6 +432,11 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!54 &871263448 stripped
+Rigidbody:
+  m_CorrespondingSourceObject: {fileID: 1148007984975919098, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+  m_PrefabInstance: {fileID: 2635340877866983419}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1136015443
 GameObject:
   m_ObjectHideFlags: 0
@@ -504,6 +509,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Arena
       objectReference: {fileID: 0}
+    - target: {fileID: 5633701245493237200, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: targetBall
+      value: 
+      objectReference: {fileID: 871263448}
     - target: {fileID: 8110298497231679230, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: m_LocalScale.x
       value: 1
