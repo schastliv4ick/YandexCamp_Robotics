@@ -131,7 +131,9 @@ public class RobotBrain : Agent
 
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
-        transform.SetPositionAndRotation(startPosition, startRotation);
+        float randomAngle = UnityEngine.Random.Range(-180f, 180f);
+        Quaternion randomRotation = Quaternion.Euler(0f, startRotation.eulerAngles.y + randomAngle, 0f);
+        transform.SetPositionAndRotation(startPosition, randomRotation);
 
         if (gripperController != null && gripperController.IsHolding)
         {
