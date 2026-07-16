@@ -21,27 +21,33 @@ public class RobotBrain : Agent
     [SerializeField] private float fallHeightThreshold = -1f;
     [SerializeField] private float cameraPivotMaxAngle = 45f;
     [SerializeField] private float cameraPivotSpeed = 60f;
-    
-    [Header("Base Rewards")]
-    [SerializeField] private float goalPotentialScale = 0.3f;
-    [SerializeField] private float goalPotentialEps = 0.3f;
-    [SerializeField] private float alignPotentialScale = 0.1f;
-    [SerializeField] private float obstaclePotentialScale = 0.5f;
-    [SerializeField] private float obstacleSafeDistance = 0.3f;
-    [SerializeField] private float actionRatePenalty = 0.01f;
-    [SerializeField] private float irCollisionPenalty = 0.02f;
-    [SerializeField] private float successReward = 5.0f;
-    [SerializeField] private float fallPenalty = 1.0f;
+
+    [Header("Rewards")]
+    [Header("1. Сближение с мячом (Distance Delta)")]
+    [SerializeField] private float distanceRewardFar = 0.05f;   // награда за 1 метр сближения, если мяч далеко
+    [SerializeField] private float distanceRewardNear = 0.15f;  // награда за 1 метр сближения, если мяч близко
+    [SerializeField] private float nearDistanceThreshold = 0.5f; // порог "близко" в метрах
+
+    [Header("2. Центрирование мяча перед захватом")]
     [SerializeField] private float centeringRewardScale = 0.02f;
 
-    [Header("New Dynamic Constraints")]
+    [Header("3. Плавность управления")]
+    [SerializeField] private float actionRatePenalty = 0.01f;
+
+    [Header("4. Дистанция до стен (УЗ, континуальный штраф)")]
+    [SerializeField] private float obstaclePenaltyScale = 0.05f;
+    [SerializeField] private float obstacleSafeDistance = 0.3f;
+
+    [Header("5. Реальный контакт со стеной (ИК, ближний диапазон)")]
+    [SerializeField] private float irCollisionPenalty = 0.02f;
+
+    [Header("6. Задний ход")]
     [SerializeField] private float backwardPenalty = 0.01f;
     [SerializeField] private float backwardGasThreshold = -0.1f;
-    [SerializeField] private float lostSightPenalty = 0.5f;
-    [SerializeField] private float explorationBonus = 0.01f;
-    [SerializeField] private float explorationCellSize = 1.0f;
-    [SerializeField] private float gripperTogglePenalty = 0.1f;
-    [SerializeField] private float ballDroppedPenalty = 1.0f;
+
+    [Header("7-8. Терминальные условия")]
+    [SerializeField] private float successReward = 5.0f;
+    [SerializeField] private float fallPenalty = 1.0f;
 
     private Queue<float[]> actionBuffer = new Queue<float[]>();
     private int currentActionLatency = 5;
@@ -67,11 +73,6 @@ public class RobotBrain : Agent
     private float startBallMass;
     private Vector3 startBallLocalPosition; 
 
-    private bool wasBallVisible;
-    private HashSet<Vector2Int> visitedCells = new HashSet<Vector2Int>();
-    private int prevGripperCommand;
-    private bool wasHolding;
-
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
@@ -85,12 +86,11 @@ public class RobotBrain : Agent
             startBallMass = targetBall.mass;
             startBallLocalPosition = targetBall.transform.localPosition;
         }
-
-        // Защитная проверка ссылок на старте (из нового документа)
-        if (targetBall == null) Debug.LogWarning("[RobotBrain] targetBall не назначен в инспекторе — навигация работать не будет!");
-        if (virtualSensors == null) Debug.LogWarning("[RobotBrain] virtualSensors не назначен — датчики препятствий отключены!");
-        if (yoloCamera == null) Debug.LogWarning("[RobotBrain] yoloCamera не назначен — зрение робота отключено!");
-        if (gripperController == null) Debug.LogWarning("[RobotBrain] gripperController не назначен — захват мяча не сработает!");
+        if (targetBall == null) Debug.LogWarning("[RobotBrain] targetBall не назначен — награда за сближение всегда будет 0!");
+        if (virtualSensors == null) Debug.LogWarning("[RobotBrain] virtualSensors не назначен — штрафы за препятствия работать не будут!");
+        if (yoloCamera == null) Debug.LogWarning("[RobotBrain] yoloCamera не назначен — награда за центрирование всегда будет 0!");
+        if (gripperController == null) Debug.LogWarning("[RobotBrain] gripperController не назначен — терминальная награда за захват не сработает!");
+    
     }
 
     public void ResetBall()
@@ -111,8 +111,6 @@ public class RobotBrain : Agent
 
     public override void OnEpisodeBegin()
     {
-
-        
         ResetBall();
         if (Academy.Instance.IsCommunicatorOn)
         {
@@ -150,14 +148,8 @@ public class RobotBrain : Agent
         cameraPivotAngle = 0f;
 
         if (targetBall != null)
-            // prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
-            prevPotential = ComputeStatePotential();
-        
-        wasBallVisible = false;
-        visitedCells.Clear();
-        prevGripperCommand = 0;
-        wasHolding = false;
-
+            prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
+                    
         holdTicks = 0;
         currentActionLatency = Academy.Instance.IsCommunicatorOn ? UnityEngine.Random.Range(8, 14) : 0;
         actionBuffer.Clear();
@@ -167,69 +159,40 @@ public class RobotBrain : Agent
         }
     }
 
-    private float ComputeStatePotential()
+
+    private void CalculateRewards(float gas, float steer)
     {
-        float phiGoal = 0f;
+        if (transform.position.y < fallHeightThreshold)
+        {
+            AddReward(-fallPenalty);
+            EndEpisode();
+            return;
+        }
+
+        if (gripperController != null && gripperController.IsHolding)
+        {
+            AddReward(successReward);
+            EndEpisode();
+            return;
+        }
+
         if (targetBall != null)
         {
-            float d = Vector3.Distance(transform.position, targetBall.position);
-            phiGoal = goalPotentialScale / (d + goalPotentialEps);
-        }
-        return phiGoal;
-    }
+            float currentDistance = Vector3.Distance(transform.position, targetBall.position);
+            float delta = prevDistanceToBall - currentDistance; // > 0, если стали ближе
 
-    private void CalculateRewards(float gas, float steer, float cameraSignal)
-    {
-        bool isHolding = gripperController != null && gripperController.IsHolding;
-        if (wasHolding && !isHolding)
+            float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
+            AddReward(delta * rewardScale);
+
+            prevDistanceToBall = currentDistance;
+        }
+
+        if (yoloCamera != null && yoloCamera.IsBallVisible)
         {
-            AddReward(-ballDroppedPenalty); // Резкий штраф за потерю удержания
-        }
-        wasHolding = isHolding;
-
-        // 2. Потенциал-based навигация
-        float currentPotential = ComputeStatePotential();
-        AddReward(gamma * currentPotential - prevPotential);
-        prevPotential = currentPotential;
-
-        // 3. Штраф за резкость управления
-        float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
-        AddReward(-actionRatePenalty * actionMagnitude);
-
-        // 4. Штраф за движение задним ходом (Идея 6)
-        if (gas < backwardGasThreshold)
-        {
-            AddReward(-backwardPenalty);
+            AddReward(centeringRewardScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle))* (1f - yoloCamera.NormalizedDistance));
         }
 
-        // 5. Симуляция утери мяча из кадра YOLO (Идея А) + Исследование (Идея Б)
-        bool ballVisible = yoloCamera != null && yoloCamera.IsBallVisible && (burstDropoutRemaining <= 0);
-        
-        if (wasBallVisible && !ballVisible)
-        {
-            AddReward(-lostSightPenalty); // Разовый штраф в момент пропажи из кадра
-        }
-        wasBallVisible = ballVisible;
-
-        bool isballVisible = yoloCamera != null && yoloCamera.IsBallVisible;
-
-        if (isballVisible)
-        {
-            AddReward(centeringRewardScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle)));
-        }
-        else{
-            if (lastKnownBallAngle > 0f && cameraSignal > 0.1f) 
-            {
-                AddReward(0.002f);
-            }
-            else if (lastKnownBallAngle < 0f && cameraSignal < -0.1f) 
-            {
-                AddReward(0.002f);
-            }
-        }
-
-        // Награда за исследование новых зон, только пока мяч не виден (Идея Б)
-        if (!ballVisible)
+        if (!IsBallVisible)
         {
             Vector2Int cell = new Vector2Int(
                 Mathf.FloorToInt(transform.position.x / explorationCellSize),
@@ -241,23 +204,28 @@ public class RobotBrain : Agent
             }
         }
 
-        // 6. Датчики препятствий и терминальные условия
+        float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
+        AddReward(-actionRatePenalty * actionMagnitude);
+
+        if (virtualSensors != null)
+        {
+            float us = virtualSensors.USNormalizedDistance; // 0 = вплотную, 1 = чисто
+            if (us < obstacleSafeDistance)
+            {
+                float danger = (obstacleSafeDistance - us) / obstacleSafeDistance; // 0..1
+                AddReward(-obstaclePenaltyScale * danger);
+            }
+        }
+
         if (virtualSensors != null && (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f))
+        {
             AddReward(-irCollisionPenalty);
-
-        if (transform.position.y < fallHeightThreshold)
-        {
-            AddReward(-fallPenalty);
-            EndEpisode();
-            return;
         }
 
-        if (virtualSensors != null && virtualSensors.USNormalizedDistance < obstacleSafeDistance)
+        if (gas < backwardGasThreshold)
         {
-            float danger = (obstacleSafeDistance - virtualSensors.USNormalizedDistance) / obstacleSafeDistance;
-            AddReward(-obstaclePotentialScale * danger * danger * Time.fixedDeltaTime);
+            AddReward(-backwardPenalty);
         }
-        AddReward(-1f / 4000f);
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -376,16 +344,9 @@ public class RobotBrain : Agent
         {
             if (gripperCommand == 1) gripperController.GripperCloseCommand = true;
             else if (gripperCommand == 2) gripperController.GripperCloseCommand = false;
-            
-            // Штраф за частую смену команд зажима (Идея В)
-            if (gripperCommand != prevGripperCommand && gripperCommand != 0)
-            {
-                AddReward(-gripperTogglePenalty);
-            }
-            prevGripperCommand = gripperCommand;
         }
 
-        CalculateRewards(gas, steer, cameraSignal);
+        CalculateRewards(gas, steer);
         prevGas = gas;
         prevSteer = steer;
     }
