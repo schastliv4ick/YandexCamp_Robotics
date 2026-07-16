@@ -1238,7 +1238,7 @@ MonoBehaviour:
   agentParameters:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
-  MaxStep: 2000
+  MaxStep: 4000
   trackController: {fileID: 1677057379135965520}
   gripperController: {fileID: 343155045744222010}
   virtualSensors: {fileID: 8740193334231164096}
@@ -1257,6 +1257,13 @@ MonoBehaviour:
   irCollisionPenalty: 0.02
   successReward: 5
   fallPenalty: -1
+  backwardPenalty: 0.01
+  backwardGasThreshold: -0.1
+  lostSightPenalty: 0.5
+  explorationBonus: 0.01
+  explorationCellSize: 1
+  gripperTogglePenalty: 0.1
+  ballDroppedPenalty: 1
 --- !u!114 &4479401334779454422
 MonoBehaviour:
   m_ObjectHideFlags: 0
