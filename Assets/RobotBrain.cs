@@ -70,7 +70,7 @@ public class RobotBrain : Agent
     private float startBallMass;
     private Vector3 startBallLocalPosition; 
 
-    private DiagnosticLogger diagLogger;
+    private DiagnosticLogger diagLogger; // это всегда null, если не включен в сцене
 
     private bool lastBallVisible;
     private float lastBallAngle;
@@ -79,12 +79,17 @@ public class RobotBrain : Agent
     private bool episodeOutcomeLogged = false;
     private bool isFirstEpisode = true;
 
+    private bool rewardConfigLoaded = false;
+
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
+        diagLogger = GetComponent<DiagnosticLogger>();
 
         startPosition = transform.position;
         startRotation = transform.rotation;
+
+        LoadRewardConfigFromEnvironmentParameters();
 
         if (targetBall != null)
         {
@@ -97,6 +102,30 @@ public class RobotBrain : Agent
         if (yoloCamera == null) Debug.LogWarning("[RobotBrain] yoloCamera не назначен — награда за центрирование всегда будет 0!");
         if (gripperController == null) Debug.LogWarning("[RobotBrain] gripperController не назначен — терминальная награда за захват не сработает!");
     
+    }
+
+    // считываем веса из конфига
+    // GetWithDefault возвращает переданное значение, иначе возвращает дефолтное из кода
+    private void LoadRewardConfigFromEnvironmentParameters()
+    {
+        var p = Academy.Instance.EnvironmentParameters;
+
+        distanceRewardFar = p.GetWithDefault("distance_reward_far", distanceRewardFar);
+        distanceRewardNear = p.GetWithDefault("distance_reward_near", distanceRewardNear);
+        nearDistanceThreshold = p.GetWithDefault("near_distance_threshold", nearDistanceThreshold);
+        centeringRewardScale = p.GetWithDefault("centering_reward_scale", centeringRewardScale);
+        actionRatePenalty = p.GetWithDefault("action_rate_penalty", actionRatePenalty);
+        obstaclePenaltyScale = p.GetWithDefault("obstacle_penalty_scale", obstaclePenaltyScale);
+        obstacleSafeDistance = p.GetWithDefault("obstacle_safe_distance", obstacleSafeDistance);
+        irCollisionPenalty = p.GetWithDefault("ir_collision_penalty", irCollisionPenalty);
+        backwardPenalty = p.GetWithDefault("backward_penalty", backwardPenalty);
+        backwardGasThreshold  = p.GetWithDefault("backward_gas_threshold", backwardGasThreshold);
+        successReward = p.GetWithDefault("success_reward", successReward);
+        fallPenalty = p.GetWithDefault("fall_penalty", fallPenalty);
+
+        Debug.Log($"[RobotBrain] Reward config: success={successReward:F2} fall={fallPenalty:F2} " +
+                  $"distNear={distanceRewardNear:F3} distFar={distanceRewardFar:F3} " +
+                  $"obstaclePenalty={obstaclePenaltyScale:F3} actionRate={actionRatePenalty:F3}");
     }
 
     public void ResetBall()
@@ -117,6 +146,12 @@ public class RobotBrain : Agent
 
     public override void OnEpisodeBegin()
     {
+        if (!rewardConfigLoaded && Academy.Instance.IsCommunicatorOn)
+        {
+            LoadRewardConfigFromEnvironmentParameters();
+            rewardConfigLoaded = true;
+        }
+
         ResetBall();
         if (Academy.Instance.IsCommunicatorOn)
         {
