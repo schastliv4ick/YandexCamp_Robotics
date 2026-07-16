@@ -493,21 +493,45 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 897449674108940850, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.297
+      objectReference: {fileID: 0}
+    - target: {fileID: 897449674108940850, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.562
+      objectReference: {fileID: 0}
     - target: {fileID: 1933567685896319443, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: m_Model
       value: 
+      objectReference: {fileID: 5022602860645237092, guid: 11656f1acb3289a41adf070a0e4c0e98, type: 3}
+    - target: {fileID: 1933567685896319443, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_BehaviorType
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2321187816488341999, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.037
+      value: -0.683
       objectReference: {fileID: 0}
     - target: {fileID: 2321187816488341999, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.979
+      value: 0.32
       objectReference: {fileID: 0}
     - target: {fileID: 3336467127323412029, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: m_Name
       value: Arena
+      objectReference: {fileID: 0}
+    - target: {fileID: 3925764986075426931, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 1.657
+      objectReference: {fileID: 0}
+    - target: {fileID: 3925764986075426931, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.531
+      objectReference: {fileID: 0}
+    - target: {fileID: 5633701245493237200, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: MaxStep
+      value: 4000
       objectReference: {fileID: 0}
     - target: {fileID: 5633701245493237200, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: targetBall

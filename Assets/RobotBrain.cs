@@ -96,7 +96,11 @@ public class RobotBrain : Agent
     {
         if (targetBall == null) return;
         
-        targetBall.transform.localPosition = startBallLocalPosition;
+        float randomX = UnityEngine.Random.Range(-0.5f, 0.5f);
+        float randomZ = UnityEngine.Random.Range(-0.5f, 0.5f);
+        Vector3 randomOffset = new Vector3(randomX, 0f, randomZ);
+
+        targetBall.transform.localPosition = startBallLocalPosition + randomOffset;
         targetBall.mass = startBallMass * (1.0f + UnityEngine.Random.Range(0.0f, 1.0f));
         targetBall.transform.localScale = startBallScale * (1.0f + UnityEngine.Random.Range(-0.2f, 0.2f));
         targetBall.linearVelocity = Vector3.zero;
@@ -128,7 +132,9 @@ public class RobotBrain : Agent
 
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
-        transform.SetPositionAndRotation(startPosition, startRotation);
+        float randomAngle = UnityEngine.Random.Range(-180f, 180f);
+        Quaternion randomRotation = Quaternion.Euler(0f, startRotation.eulerAngles.y + randomAngle, 0f);
+        transform.SetPositionAndRotation(startPosition, randomRotation);
 
         if (gripperController != null && gripperController.IsHolding)
         {
@@ -305,7 +311,7 @@ public class RobotBrain : Agent
             }
             holdTicks++;
             AddReward(0.02f);
-            if (holdTicks >= 50)
+            if (holdTicks >= 20)
             {
                 AddReward(successReward);
                 EndEpisode();

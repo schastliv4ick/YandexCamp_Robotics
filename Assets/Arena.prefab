@@ -1244,7 +1244,7 @@ MonoBehaviour:
   virtualSensors: {fileID: 8740193334231164096}
   yoloCamera: {fileID: 4479401334779454422}
   cameraPivot: {fileID: 6536664849807711173}
-  targetBall: {fileID: 2321187816488341999}
+  targetBall: {fileID: 1148007984975919098}
   fallHeightThreshold: -1
   cameraPivotMaxAngle: 45
   cameraPivotSpeed: 60
