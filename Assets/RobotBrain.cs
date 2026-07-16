@@ -21,7 +21,7 @@ public class RobotBrain : Agent
     [SerializeField] private float fallHeightThreshold = -1f;
     [SerializeField] private float cameraPivotMaxAngle = 45f;
     [SerializeField] private float cameraPivotSpeed = 60f;
-
+    
     [Header("Base Rewards")]
     [SerializeField] private float goalPotentialScale = 0.3f;
     [SerializeField] private float goalPotentialEps = 0.3f;
@@ -32,6 +32,7 @@ public class RobotBrain : Agent
     [SerializeField] private float irCollisionPenalty = 0.02f;
     [SerializeField] private float successReward = 5.0f;
     [SerializeField] private float fallPenalty = 1.0f;
+    [SerializeField] private float centeringRewardScale = 0.02f;
 
     [Header("New Dynamic Constraints")]
     [SerializeField] private float backwardPenalty = 0.01f;
@@ -177,7 +178,7 @@ public class RobotBrain : Agent
         return phiGoal;
     }
 
-    private void CalculateRewards(float gas, float steer)
+    private void CalculateRewards(float gas, float steer, float cameraSignal)
     {
         bool isHolding = gripperController != null && gripperController.IsHolding;
         if (wasHolding && !isHolding)
@@ -210,11 +211,21 @@ public class RobotBrain : Agent
         }
         wasBallVisible = ballVisible;
 
-        if (yoloCamera != null && yoloCamera.IsBallVisible)
+        bool isballVisible = yoloCamera != null && yoloCamera.IsBallVisible;
+
+        if (isballVisible)
         {
-            // Домножаем на Time.fixedDeltaTime, чтобы робот не "фармил" очки, просто стоя и глядя на мяч
-            float alignBonus = alignPotentialScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle));
-            AddReward(alignBonus * Time.fixedDeltaTime);
+            AddReward(centeringRewardScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle)));
+        }
+        else{
+            if (lastKnownBallAngle > 0f && cameraSignal > 0.1f) 
+            {
+                AddReward(0.002f);
+            }
+            else if (lastKnownBallAngle < 0f && cameraSignal < -0.1f) 
+            {
+                AddReward(0.002f);
+            }
         }
 
         // Награда за исследование новых зон, только пока мяч не виден (Идея Б)
@@ -374,7 +385,7 @@ public class RobotBrain : Agent
             prevGripperCommand = gripperCommand;
         }
 
-        CalculateRewards(gas, steer);
+        CalculateRewards(gas, steer, cameraSignal);
         prevGas = gas;
         prevSteer = steer;
     }
