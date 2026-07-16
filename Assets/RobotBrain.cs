@@ -192,18 +192,6 @@ public class RobotBrain : Agent
             AddReward(centeringRewardScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle))* (1f - yoloCamera.NormalizedDistance));
         }
 
-        if (!IsBallVisible)
-        {
-            Vector2Int cell = new Vector2Int(
-                Mathf.FloorToInt(transform.position.x / explorationCellSize),
-                Mathf.FloorToInt(transform.position.z / explorationCellSize)
-            );
-            if (visitedCells.Add(cell)) // Добавит и вернет true только если клетка новая
-            {
-                AddReward(explorationBonus);
-            }
-        }
-
         float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
         AddReward(-actionRatePenalty * actionMagnitude);
 
