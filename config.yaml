@@ -1,9 +1,12 @@
+env_settings:
+  num_areas: 40
+
 behaviors:
   GFSX_Brain:
     trainer_type: ppo
     hyperparameters:
-      batch_size: 2048
-      buffer_size: 40960
+      batch_size: 4096
+      buffer_size: 102400
       learning_rate: 0.00025
       beta: 0.005
       epsilon: 0.2
@@ -22,6 +25,6 @@ behaviors:
         gamma: 0.99
         strength: 1.0
     keep_checkpoints: 5
-    max_steps: 5000000
+    max_steps: 50000000
     time_horizon: 1000
     summary_freq: 20000
