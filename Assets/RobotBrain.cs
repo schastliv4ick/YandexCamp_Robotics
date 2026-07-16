@@ -21,19 +21,36 @@ public class RobotBrain : Agent
     [SerializeField] private float cameraPivotMaxAngle = 45f;
     [SerializeField] private float cameraPivotSpeed = 60f;
 
-    [Header("Rewards")]
-    [SerializeField] private float goalPotentialScale = 0.3f;
-    [SerializeField] private float goalPotentialEps = 0.3f;
-    [SerializeField] private float alignPotentialScale = 0.1f;
-    [SerializeField] private float obstaclePotentialScale = 0.5f;
-    [SerializeField] private float obstacleSafeDistance = 0.3f;
+    // === MVP-набор наград: сумма НЕЗАВИСИМЫХ слагаемых (не потенциальная функция). ===
+    // Каждое слагаемое можно включить/выключить и прологировать отдельно — это осознанный
+    // выбор в пользу простоты отладки, а не потенциал-based shaping (см. вариант в самом
+    // низу файла, помеченный "ADVANCED / PHASE 2", если позже понадобится его теоретическая
+    // гарантия сохранения оптимальной политики).
+    [Header("1. Сближение с мячом (Distance Delta)")]
+    [SerializeField] private float distanceRewardFar = 0.05f;   // награда за 1 метр сближения, если мяч далеко
+    [SerializeField] private float distanceRewardNear = 0.15f;  // награда за 1 метр сближения, если мяч близко
+    [SerializeField] private float nearDistanceThreshold = 0.5f; // порог "близко" в метрах
+
+    [Header("2. Центрирование мяча перед захватом")]
+    [SerializeField] private float centeringRewardScale = 0.02f;
+
+    [Header("3. Плавность управления")]
     [SerializeField] private float actionRatePenalty = 0.01f;
+
+    [Header("4. Дистанция до стен (УЗ, континуальный штраф)")]
+    [SerializeField] private float obstaclePenaltyScale = 0.05f;
+    [SerializeField] private float obstacleSafeDistance = 0.3f;
+
+    [Header("5. Реальный контакт со стеной (ИК, ближний диапазон)")]
     [SerializeField] private float irCollisionPenalty = 0.02f;
+
+    [Header("6. Задний ход")]
+    [SerializeField] private float backwardPenalty = 0.01f;
+    [SerializeField] private float backwardGasThreshold = -0.1f;
+
+    [Header("7-8. Терминальные условия")]
     [SerializeField] private float successReward = 5.0f;
     [SerializeField] private float fallPenalty = 1.0f;
-
-    private const float gamma = 0.99f; // sync gamma with config.yaml
-    private float prevPotential;
 
     private Rigidbody rb;
     private Vector3 startPosition;
@@ -51,6 +68,13 @@ public class RobotBrain : Agent
         rb = GetComponent<Rigidbody>();
         startPosition = transform.position;
         startRotation = transform.rotation;
+
+        // Частая причина "тренируется, но ничему не учится": забыли перетащить ссылку
+        // в инспекторе, и часть наград тихо всегда равна нулю. Проверяем один раз при старте.
+        if (targetBall == null) Debug.LogWarning("[RobotBrain] targetBall не назначен — награда за сближение всегда будет 0!");
+        if (virtualSensors == null) Debug.LogWarning("[RobotBrain] virtualSensors не назначен — штрафы за препятствия работать не будут!");
+        if (yoloCamera == null) Debug.LogWarning("[RobotBrain] yoloCamera не назначен — награда за центрирование всегда будет 0!");
+        if (gripperController == null) Debug.LogWarning("[RobotBrain] gripperController не назначен — терминальная награда за захват не сработает!");
     }
 
     public override void OnEpisodeBegin()
@@ -72,49 +96,16 @@ public class RobotBrain : Agent
         cameraPivotAngle = 0f;
 
         if (targetBall != null)
-            // prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
-            prevPotential = ComputeStatePotential();
+            prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
     }
 
-    private float ComputeStatePotential()
+    private void  CalculateRewards(float gas, float steer, float cameraSignal)
     {
-        float phiGoal = 0f;
-        if (targetBall != null)
-        {
-            float d = Vector3.Distance(transform.position, targetBall.position);
-            phiGoal = -goalPotentialScale / (d + goalPotentialEps);
-        }
+        // --- Терминальные условия проверяем первыми и выходим сразу (return),
+        //     чтобы на последнем шаге эпизода не намешивались другие награды
+        //     поверх успеха/падения — так проще читать логи по эпизодам. ---
 
-        float phiAlign = 0f;
-        if (yoloCamera != null && yoloCamera.IsBallVisible)
-            phiAlign = alignPotentialScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle));
-
-        float phiObstacle = 0f;
-        if (virtualSensors != null)
-        {
-            float us = virtualSensors.USNormalizedDistance;
-            if (us < obstacleSafeDistance)
-            {
-                float danger = (obstacleSafeDistance - us) / obstacleSafeDistance;
-                phiObstacle = -obstaclePotentialScale * danger * danger;
-            }
-        }
-
-        return phiGoal + phiAlign + phiObstacle;
-    }
-
-    private void CalculateRewards(float gas, float steer)
-    {
-        float currentPotential = ComputeStatePotential();
-        AddReward(gamma * currentPotential - prevPotential);
-        prevPotential = currentPotential;
-
-        float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
-        AddReward(-actionRatePenalty * actionMagnitude);
-
-        if (virtualSensors != null && (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f))
-            AddReward(-irCollisionPenalty);
-
+        // 7. Падение с арены
         if (transform.position.y < fallHeightThreshold)
         {
             AddReward(-fallPenalty);
@@ -122,10 +113,76 @@ public class RobotBrain : Agent
             return;
         }
 
+        // 8. Успешный захват мяча
         if (gripperController != null && gripperController.IsHolding)
         {
             AddReward(successReward);
             EndEpisode();
+            return;
+        }
+
+        // 1. Награда за сближение с мячом (Distance Delta).
+        //    Порог nearDistanceThreshold переключает на более сильную награду —
+        //    "дожать" последние сантиметры важнее, чем плыть издалека.
+        if (targetBall != null)
+        {
+            float currentDistance = Vector3.Distance(transform.position, targetBall.position);
+            float delta = prevDistanceToBall - currentDistance; // > 0, если стали ближе
+
+            float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
+            AddReward(delta * rewardScale);
+
+            prevDistanceToBall = currentDistance;
+        }
+
+        // 2. Бонус за центрирование мяча в кадре камеры (готовность к захвату)
+        bool isballVisible = yoloCamera != null && yoloCamera.IsBallVisible;
+
+        if (isballVisible)
+        {
+            AddReward(centeringRewardScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle)));
+        }
+        else{
+            if (lastKnownBallAngle > 0f && cameraSignal > 0.1f) 
+            {
+                AddReward(0.002f);
+            }
+            else if (lastKnownBallAngle < 0f && cameraSignal < -0.1f) 
+            {
+                AddReward(0.002f);
+            }
+        }
+
+        // 3. Штраф за резкость управления (плавность газ/руль между шагами)
+        float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
+        AddReward(-actionRatePenalty * actionMagnitude);
+
+        // 4. Штраф за приближение к стене по УЗ-дальномеру.
+        //    Континуальный (не "да/нет"): чем ближе к стене, тем больнее.
+        //    Отдельной "награды за объезд" не нужно — как только робот отъехал,
+        //    danger падает и штраф сам уменьшается до нуля на следующем шаге.
+        if (virtualSensors != null)
+        {
+            float us = virtualSensors.USNormalizedDistance; // 0 = вплотную, 1 = чисто
+            if (us < obstacleSafeDistance)
+            {
+                float danger = (obstacleSafeDistance - us) / obstacleSafeDistance; // 0..1
+                AddReward(-obstaclePenaltyScale * danger);
+            }
+        }
+
+        // 5. Штраф за реальный/почти реальный контакт со стеной по ближним ИК-датчикам
+        if (virtualSensors != null && (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f))
+        {
+            AddReward(-irCollisionPenalty);
+        }
+
+        // 6. Небольшой штраф за движение задним ходом.
+        //    Не запрещаем полностью (иногда нужно сдать назад от стены),
+        //    просто не даём агенту выбрать "ехать назад" как основную стратегию.
+        if (gas < backwardGasThreshold)
+        {
+            AddReward(-backwardPenalty);
         }
     }
 
@@ -181,54 +238,10 @@ public class RobotBrain : Agent
             else if (gripperCommand == 2) gripperController.GripperCloseCommand = false;
         }
 
-        CalculateRewards(gas, steer);
+        CalculateRewards(gas, steer, cameraSignal);
         prevGas = gas;
         prevSteer = steer;
     }
-
-    // private void CalculateRewards(float gas, float steer)
-    // {
-    //     if (targetBall == null) return;
-
-    //     float currentDistance = Vector3.Distance(transform.position, targetBall.position);
-
-    //     if (currentDistance < prevDistanceToBall)
-    //     {
-    //         float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
-    //         AddReward(rewardScale);
-    //     }
-
-    //     float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
-    //     AddReward(-actionRatePenalty * actionMagnitude);
-
-    //     bool ballVisible = yoloCamera != null && yoloCamera.IsBallVisible;
-    //     if (ballVisible)
-    //     {
-    //         float relativeAngle = Mathf.Abs(yoloCamera.RelativeAngle);
-    //         AddReward(centeringRewardScale * (1f - relativeAngle));
-    //     }
-
-    //     if (virtualSensors != null)
-    //     {
-    //         if (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f)
-    //             AddReward(-obstaclePenalty);
-    //     }
-
-    //     if (transform.position.y < fallHeightThreshold)
-    //     {
-    //         AddReward(fallPenalty);
-    //         EndEpisode();
-    //     }
-
-    //     if (gripperController != null && gripperController.IsHolding)
-    //     {
-    //         AddReward(successReward);
-    //         EndEpisode();
-    //     }
-
-    //     prevDistanceToBall = currentDistance;
-    // }
-
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         var ca = actionsOut.ContinuousActions;
