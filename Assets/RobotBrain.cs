@@ -70,6 +70,15 @@ public class RobotBrain : Agent
     private float startBallMass;
     private Vector3 startBallLocalPosition; 
 
+    private DiagnosticLogger diagLogger;
+
+    private bool lastBallVisible;
+    private float lastBallAngle;
+    private float lastBallDist;
+
+    private bool episodeOutcomeLogged = false;
+    private bool isFirstEpisode = true;
+
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
@@ -334,6 +343,27 @@ public class RobotBrain : Agent
         CalculateRewards(gas, steer);
         prevGas = gas;
         prevSteer = steer;
+
+        if (diagLogger != null && virtualSensors != null && gripperController != null)
+        {
+            bool isRetryingHeuristic = gas < backwardGasThreshold
+                && lastBallDist < nearDistanceThreshold
+                && (Time.time - lastDetectionTime) < 1f;
+
+            diagLogger.LogStep(
+                StepCount,
+                lastBallVisible, lastBallAngle, lastBallDist,
+                virtualSensors.USNormalizedDistance,
+                virtualSensors.LeftIRObstacle > 0.5f ? 1 : 0,
+                virtualSensors.RightIRObstacle > 0.5f ? 1 : 0,
+                virtualSensors.GripperIRBallDetected > 0.5f ? 1 : 0,
+                cameraPivotAngle, gas, steer,
+                gripperController.IsHolding, holdTicks, isRetryingHeuristic,
+                transform.position.x - startPosition.x, transform.position.z - startPosition.z,
+                transform.eulerAngles.y / 360f,
+                rb.linearVelocity.magnitude
+            );
+        }
     }
 
     public override void Heuristic(in ActionBuffers actionsOut)
