@@ -56,9 +56,6 @@ public class RobotBrain : Agent
     private int burstDropoutRemaining = 0;
     private float lastDetectionTime = 0;
 
-    private const float gamma = 0.99f; // sync gamma with config.yaml
-    private float prevPotential;
-
     private Rigidbody rb;
     private Vector3 startPosition;
     private Quaternion startRotation;
@@ -190,18 +187,6 @@ public class RobotBrain : Agent
         if (yoloCamera != null && yoloCamera.IsBallVisible)
         {
             AddReward(centeringRewardScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle))* (1f - yoloCamera.NormalizedDistance));
-        }
-
-        if (!IsBallVisible)
-        {
-            Vector2Int cell = new Vector2Int(
-                Mathf.FloorToInt(transform.position.x / explorationCellSize),
-                Mathf.FloorToInt(transform.position.z / explorationCellSize)
-            );
-            if (visitedCells.Add(cell)) // Добавит и вернет true только если клетка новая
-            {
-                AddReward(explorationBonus);
-            }
         }
 
         float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
