@@ -22,7 +22,7 @@ public class RobotBrain : Agent
     [SerializeField] private float cameraPivotMaxAngle = 45f;
     [SerializeField] private float cameraPivotSpeed = 60f;
 
-    [Header("Rewards")]
+    [Header("Base Rewards")]
     [SerializeField] private float goalPotentialScale = 0.3f;
     [SerializeField] private float goalPotentialEps = 0.3f;
     [SerializeField] private float alignPotentialScale = 0.1f;
@@ -32,6 +32,15 @@ public class RobotBrain : Agent
     [SerializeField] private float irCollisionPenalty = 0.02f;
     [SerializeField] private float successReward = 5.0f;
     [SerializeField] private float fallPenalty = 1.0f;
+
+    [Header("New Dynamic Constraints")]
+    [SerializeField] private float backwardPenalty = 0.01f;
+    [SerializeField] private float backwardGasThreshold = -0.1f;
+    [SerializeField] private float lostSightPenalty = 0.5f;
+    [SerializeField] private float explorationBonus = 0.01f;
+    [SerializeField] private float explorationCellSize = 1.0f;
+    [SerializeField] private float gripperTogglePenalty = 0.1f;
+    [SerializeField] private float ballDroppedPenalty = 1.0f;
 
     private Queue<float[]> actionBuffer = new Queue<float[]>();
     private int currentActionLatency = 5;
@@ -57,6 +66,11 @@ public class RobotBrain : Agent
     private float startBallMass;
     private Vector3 startBallLocalPosition; 
 
+    private bool wasBallVisible;
+    private HashSet<Vector2Int> visitedCells = new HashSet<Vector2Int>();
+    private int prevGripperCommand;
+    private bool wasHolding;
+
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
@@ -70,6 +84,12 @@ public class RobotBrain : Agent
             startBallMass = targetBall.mass;
             startBallLocalPosition = targetBall.transform.localPosition;
         }
+
+        // Защитная проверка ссылок на старте (из нового документа)
+        if (targetBall == null) Debug.LogWarning("[RobotBrain] targetBall не назначен в инспекторе — навигация работать не будет!");
+        if (virtualSensors == null) Debug.LogWarning("[RobotBrain] virtualSensors не назначен — датчики препятствий отключены!");
+        if (yoloCamera == null) Debug.LogWarning("[RobotBrain] yoloCamera не назначен — зрение робота отключено!");
+        if (gripperController == null) Debug.LogWarning("[RobotBrain] gripperController не назначен — захват мяча не сработает!");
     }
 
     public void ResetBall()
@@ -126,6 +146,11 @@ public class RobotBrain : Agent
             // prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
             prevPotential = ComputeStatePotential();
         
+        wasBallVisible = false;
+        visitedCells.Clear();
+        prevGripperCommand = 0;
+        wasHolding = false;
+
         holdTicks = 0;
         currentActionLatency = Academy.Instance.IsCommunicatorOn ? UnityEngine.Random.Range(8, 14) : 0;
         actionBuffer.Clear();
@@ -153,13 +178,51 @@ public class RobotBrain : Agent
 
     private void CalculateRewards(float gas, float steer)
     {
+        bool isHolding = gripperController != null && gripperController.IsHolding;
+        if (wasHolding && !isHolding)
+        {
+            AddReward(-ballDroppedPenalty); // Резкий штраф за потерю удержания
+        }
+        wasHolding = isHolding;
+
+        // 2. Потенциал-based навигация
         float currentPotential = ComputeStatePotential();
         AddReward(gamma * currentPotential - prevPotential);
         prevPotential = currentPotential;
 
+        // 3. Штраф за резкость управления
         float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
         AddReward(-actionRatePenalty * actionMagnitude);
 
+        // 4. Штраф за движение задним ходом (Идея 6)
+        if (gas < backwardGasThreshold)
+        {
+            AddReward(-backwardPenalty);
+        }
+
+        // 5. Симуляция утери мяча из кадра YOLO (Идея А) + Исследование (Идея Б)
+        bool ballVisible = yoloCamera != null && yoloCamera.IsBallVisible && (burstDropoutRemaining <= 0);
+        
+        if (wasBallVisible && !ballVisible)
+        {
+            AddReward(-lostSightPenalty); // Разовый штраф в момент пропажи из кадра
+        }
+        wasBallVisible = ballVisible;
+
+        // Награда за исследование новых зон, только пока мяч не виден (Идея Б)
+        if (!ballVisible)
+        {
+            Vector2Int cell = new Vector2Int(
+                Mathf.FloorToInt(transform.position.x / explorationCellSize),
+                Mathf.FloorToInt(transform.position.z / explorationCellSize)
+            );
+            if (visitedCells.Add(cell)) // Добавит и вернет true только если клетка новая
+            {
+                AddReward(explorationBonus);
+            }
+        }
+
+        // 6. Датчики препятствий и терминальные условия
         if (virtualSensors != null && (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f))
             AddReward(-irCollisionPenalty);
 
@@ -293,6 +356,13 @@ public class RobotBrain : Agent
         {
             if (gripperCommand == 1) gripperController.GripperCloseCommand = true;
             else if (gripperCommand == 2) gripperController.GripperCloseCommand = false;
+            
+            // Штраф за частую смену команд зажима (Идея В)
+            if (gripperCommand != prevGripperCommand && gripperCommand != 0)
+            {
+                AddReward(-gripperTogglePenalty);
+            }
+            prevGripperCommand = gripperCommand;
         }
 
         CalculateRewards(gas, steer);
