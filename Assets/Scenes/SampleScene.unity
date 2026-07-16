@@ -938,6 +938,8 @@ GameObject:
   - component: {fileID: 1082589116}
   - component: {fileID: 1082589120}
   - component: {fileID: 1082589119}
+  - component: {fileID: 1082589122}
+  - component: {fileID: 1082589121}
   m_Layer: 0
   m_Name: Robot
   m_TagString: Untagged
@@ -1156,19 +1158,53 @@ MonoBehaviour:
   virtualSensors: {fileID: 1082589113}
   yoloCamera: {fileID: 1082589119}
   cameraPivot: {fileID: 1816200735}
+  rosBridge: {fileID: 0}
   targetBall: {fileID: 411893036}
   fallHeightThreshold: -1
   cameraPivotMaxAngle: 45
   cameraPivotSpeed: 60
-  distanceRewardFar: 0.05
-  distanceRewardNear: 0.03
-  nearDistanceThreshold: 0.5
+  isTraining: 1
+  goalPotentialScale: 0.3
+  goalPotentialEps: 0.3
+  alignPotentialScale: 0.1
+  obstaclePotentialScale: 0.5
+  obstacleSafeDistance: 0.3
   actionRatePenalty: 0.01
-  centeringRewardScale: 0.005
-  obstaclePenalty: 0.02
-  obstacleCriticalDistance: 0.2
+  irCollisionPenalty: 0.02
   successReward: 5
   fallPenalty: -1
+--- !u!114 &1082589121
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1082589108}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d29b66232722e894caecc2ab144baba8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SimpleROSBridgeTest
+  rosBridge: {fileID: 1082589122}
+--- !u!114 &1082589122
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1082589108}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 19c5f7d6e3146f14084939c648967b30, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ROSBridge
+  cmdVelTopic: /cmd_vel
+  gripperTopic: /cmd_gripper
+  cameraPanTopic: /cmd_camera_pan
+  maxLinearSpeed: 0.5
+  maxAngularSpeed: 1
+  emaAlpha: 0.8
+  enableFilter: 1
 --- !u!1 &1262213184
 GameObject:
   m_ObjectHideFlags: 0
@@ -1391,6 +1427,60 @@ Transform:
   m_LocalPosition: {x: -4.306, y: 0, z: 0.448}
   m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
   m_ConstrainProportionsScale: 1
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1309925615
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1309925617}
+  - component: {fileID: 1309925616}
+  m_Layer: 0
+  m_Name: ROSConnection
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1309925616
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1309925615}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7acef0b79454c9b4dae3f8139bc4ba77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Robotics.ROSTCPConnector::Unity.Robotics.ROSTCPConnector.ROSConnection
+  m_RosIPAddress: 192.168.2.156
+  m_RosPort: 10000
+  m_ConnectOnStart: 1
+  m_KeepaliveTime: 1
+  m_NetworkTimeoutSeconds: 2
+  m_SleepTimeSeconds: 0.01
+  m_ShowHUD: 1
+  m_TFTopics:
+  - /tf
+  listenForTFMessages: 1
+--- !u!4 &1309925617
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1309925615}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -5.07862, y: -0, z: -0.28272}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -3382,3 +3472,4 @@ SceneRoots:
   - {fileID: 487282400}
   - {fileID: 1262213188}
   - {fileID: 1889518010}
+  - {fileID: 1309925617}

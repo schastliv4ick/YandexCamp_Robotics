@@ -12,6 +12,7 @@ public class RobotBrain : Agent
     [SerializeField] private VirtualSensors virtualSensors;
     [SerializeField] private SimulatedYoloCamera yoloCamera;
     [SerializeField] private Transform cameraPivot;
+    [SerializeField] private ROSBridge rosBridge;
 
     [Header("Target")]
     [SerializeField] private Transform targetBall;
@@ -20,6 +21,7 @@ public class RobotBrain : Agent
     [SerializeField] private float fallHeightThreshold = -1f;
     [SerializeField] private float cameraPivotMaxAngle = 45f;
     [SerializeField] private float cameraPivotSpeed = 60f;
+    [SerializeField] private bool isTraining = true;
 
     [Header("Rewards")]
     [SerializeField] private float goalPotentialScale = 0.3f;
@@ -32,7 +34,7 @@ public class RobotBrain : Agent
     [SerializeField] private float successReward = 5.0f;
     [SerializeField] private float fallPenalty = 1.0f;
 
-    private const float gamma = 0.99f; // sync gamma with config.yaml
+    private const float gamma = 0.99f;
     private float prevPotential;
 
     private Rigidbody rb;
@@ -72,7 +74,6 @@ public class RobotBrain : Agent
         cameraPivotAngle = 0f;
 
         if (targetBall != null)
-            // prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
             prevPotential = ComputeStatePotential();
     }
 
@@ -163,71 +164,52 @@ public class RobotBrain : Agent
         float steer = Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
         float cameraSignal = Mathf.Clamp(actions.ContinuousActions[2], -1f, 1f);
 
-        if (trackController != null)
+        if (isTraining)
         {
-            trackController.GasInput = gas;
-            trackController.SteerInput = steer;
+            if (trackController != null)
+            {
+                trackController.GasInput = gas;
+                trackController.SteerInput = steer;
+            }
+
+            cameraPivotAngle = Mathf.Clamp(cameraPivotAngle + cameraSignal * cameraPivotSpeed * Time.fixedDeltaTime,
+                -cameraPivotMaxAngle, cameraPivotMaxAngle);
+            if (cameraPivot != null)
+                cameraPivot.localRotation = Quaternion.Euler(0f, cameraPivotAngle, 0f);
+
+            int gripperCommand = actions.DiscreteActions[0];
+            if (gripperController != null)
+            {
+                if (gripperCommand == 1) gripperController.GripperCloseCommand = true;
+                else if (gripperCommand == 2) gripperController.GripperCloseCommand = false;
+            }
+
+            CalculateRewards(gas, steer);
+        }
+        else
+        {
+            if (rosBridge != null)
+            {
+                rosBridge.PublishCommand(gas, steer);
+                
+                float cameraYaw = Mathf.Clamp(cameraSignal * cameraPivotMaxAngle, -cameraPivotMaxAngle, cameraPivotMaxAngle);
+                rosBridge.PublishCameraCmd(cameraYaw);
+                
+                int gripperCommand = actions.DiscreteActions[0];
+                if (gripperCommand == 1)
+                    rosBridge.PublishGripperCmd(1);
+                else if (gripperCommand == 2)
+                    rosBridge.PublishGripperCmd(0);
+            }
+            else
+            {
+                Debug.LogWarning("[RobotBrain] ROSBridge not assigned!");
+            }
         }
 
-        cameraPivotAngle = Mathf.Clamp(cameraPivotAngle + cameraSignal * cameraPivotSpeed * Time.fixedDeltaTime,
-            -cameraPivotMaxAngle, cameraPivotMaxAngle);
-        if (cameraPivot != null)
-            cameraPivot.localRotation = Quaternion.Euler(0f, cameraPivotAngle, 0f);
-
-        int gripperCommand = actions.DiscreteActions[0];
-        if (gripperController != null)
-        {
-            if (gripperCommand == 1) gripperController.GripperCloseCommand = true;
-            else if (gripperCommand == 2) gripperController.GripperCloseCommand = false;
-        }
-
-        CalculateRewards(gas, steer);
         prevGas = gas;
         prevSteer = steer;
     }
-
-    // private void CalculateRewards(float gas, float steer)
-    // {
-    //     if (targetBall == null) return;
-
-    //     float currentDistance = Vector3.Distance(transform.position, targetBall.position);
-
-    //     if (currentDistance < prevDistanceToBall)
-    //     {
-    //         float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
-    //         AddReward(rewardScale);
-    //     }
-
-    //     float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
-    //     AddReward(-actionRatePenalty * actionMagnitude);
-
-    //     bool ballVisible = yoloCamera != null && yoloCamera.IsBallVisible;
-    //     if (ballVisible)
-    //     {
-    //         float relativeAngle = Mathf.Abs(yoloCamera.RelativeAngle);
-    //         AddReward(centeringRewardScale * (1f - relativeAngle));
-    //     }
-
-    //     if (virtualSensors != null)
-    //     {
-    //         if (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f)
-    //             AddReward(-obstaclePenalty);
-    //     }
-
-    //     if (transform.position.y < fallHeightThreshold)
-    //     {
-    //         AddReward(fallPenalty);
-    //         EndEpisode();
-    //     }
-
-    //     if (gripperController != null && gripperController.IsHolding)
-    //     {
-    //         AddReward(successReward);
-    //         EndEpisode();
-    //     }
-
-    //     prevDistanceToBall = currentDistance;
-    // }
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
