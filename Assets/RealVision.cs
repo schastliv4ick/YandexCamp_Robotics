@@ -46,12 +46,22 @@ public class RealVision : MonoBehaviour {
         {
             while (!token.IsCancellationRequested)
             {
-                var result = await udpClient.ReceiveAsync();
-                string json = System.Text.Encoding.UTF8.GetString(result.Buffer);
-                YoloDataPacket packet = JsonUtility.FromJson<YoloDataPacket>(json);
-                if (packet != null)
+                try{
+                    var result = await udpClient.ReceiveAsync();
+                    string json = System.Text.Encoding.UTF8.GetString(result.Buffer);
+                    YoloDataPacket packet = JsonUtility.FromJson<YoloDataPacket>(json);
+
+                    if (packet != null)
+                    {
+                        udpQueue.Enqueue(packet); // safely push the packet to the queue
+                    }
+                } catch (ObjectDisposedException) {
+                    Debug.LogError($"UDP Listener error: {ex.Message}");
+                    break; // exit the loop on error
+                }
+                catch (Exception ex)
                 {
-                    udpQueue.Enqueue(packet); // safely push the packet to the queue
+                    Debug.LogWarning($"[RealVision] UDP package transmission error: {ex.Message}");
                 }
             }
         }

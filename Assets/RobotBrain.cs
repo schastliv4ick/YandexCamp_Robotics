@@ -12,6 +12,7 @@ public class RobotBrain : Agent
     [SerializeField] private GripperController gripperController;
     [SerializeField] private VirtualSensors virtualSensors;
     [SerializeField] private SimulatedYoloCamera yoloCamera;
+    [SerializeField] private RealVision realVision;
     [SerializeField] private Transform cameraPivot;
 
     [Header("Target")]
@@ -94,7 +95,7 @@ public class RobotBrain : Agent
         }
         if (targetBall == null) Debug.LogWarning("[RobotBrain] targetBall не назначен — награда за сближение всегда будет 0!");
         if (virtualSensors == null) Debug.LogWarning("[RobotBrain] virtualSensors не назначен — штрафы за препятствия работать не будут!");
-        if (yoloCamera == null) Debug.LogWarning("[RobotBrain] yoloCamera не назначен — награда за центрирование всегда будет 0!");
+        if (yoloCamera == null && realVision == null) Debug.LogWarning("[RobotBrain] yoloCamera и realVision не назначены — робот вообще не будет видеть мяч!");
         if (gripperController == null) Debug.LogWarning("[RobotBrain] gripperController не назначен — терминальная награда за захват не сработает!");
     
     }
@@ -193,9 +194,9 @@ public class RobotBrain : Agent
             prevDistanceToBall = currentDistance;
         }
 
-        if (yoloCamera != null && yoloCamera.IsBallVisible)
+        if (lastBallVisible)
         {
-            AddReward(centeringRewardScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle))* (1f - yoloCamera.NormalizedDistance));
+            AddReward(centeringRewardScale * (1f - Mathf.Abs(lastBallAngle)) * (1f - lastBallDist));
         }
 
         float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
@@ -224,7 +225,7 @@ public class RobotBrain : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        if (virtualSensors == null || yoloCamera == null || gripperController == null) return;
+        if (virtualSensors == null || gripperController == null) return;
 
         // 1. УЛЬТРАЗВУК С ШУМОМ
         // Подмешиваем случайную погрешность в пределах +-5% к нормализованной дистанции
@@ -237,26 +238,61 @@ public class RobotBrain : Agent
         sensor.AddObservation(virtualSensors.RightIRObstacle); // 2
         sensor.AddObservation(virtualSensors.GripperIRBallDetected); // 3
 
-        // 2. СИМУЛЯЦИЯ ПОТЕРЬ КАДРОВ YOLO (Burst Dropout)
-        // Если счетчик активен — уменьшаем его на 1 за каждый физический тик
-        if (burstDropoutRemaining > 0) burstDropoutRemaining--;
-        // Если робот крутится на месте быстрее 0.5 рад/с — с шансом 15% активируем слепую зону на 5-15 шагов
-        else if (Academy.Instance.IsCommunicatorOn && rb != null && rb.angularVelocity.magnitude > 0.5f)
+        // 2. ВЫБОР ИСТОЧНИКА ЗРЕНИЯ: реальный UDP-поток (RealVision) или симулированная камера (yoloCamera)
+        // Как только от Python-ноды пришёл хотя бы один пакет, RealVision.useYOLO становится true
+        // и навсегда остаётся источником данных — это соответствует реальному инференсу на роботе.
+        bool usingRealVision = realVision != null && realVision.useYOLO;
+
+        bool ballVisible;
+        float ballAngle;
+        float ballDistance;
+
+        if (usingRealVision)
         {
-            if (UnityEngine.Random.value < 0.15f) burstDropoutRemaining = UnityEngine.Random.Range(5, 16);
+            // РЕАЛЬНЫЙ РОБОТ: данные уже нормализованы и сглажены внутри RealVision/yolo_vision_node.py,
+            // поэтому симулированный burst-dropout здесь не нужен и не применяется.
+            ballVisible = realVision.seesBall;
+            ballAngle = realVision.normalizedAngle;
+            ballDistance = realVision.normalizedDistance;
+        }
+        else if (yoloCamera != null)
+        {
+            // СИМУЛЯЦИЯ: сохраняем оригинальную логику Domain Randomization потерь кадров (Burst Dropout).
+            // Если счетчик активен — уменьшаем его на 1 за каждый физический тик
+            if (burstDropoutRemaining > 0) burstDropoutRemaining--;
+            // Если робот крутится на месте быстрее 0.5 рад/с — с шансом 15% активируем слепую зону на 5-15 шагов
+            else if (Academy.Instance.IsCommunicatorOn && rb != null && rb.angularVelocity.magnitude > 0.5f)
+            {
+                if (UnityEngine.Random.value < 0.15f) burstDropoutRemaining = UnityEngine.Random.Range(5, 16);
+            }
+
+            ballVisible = yoloCamera.IsBallVisible && !(burstDropoutRemaining > 0);
+            ballAngle = yoloCamera.RelativeAngle;
+            ballDistance = yoloCamera.NormalizedDistance;
+        }
+        else
+        {
+            // Ни одного источника зрения не назначено — считаем, что мяч не виден
+            ballVisible = false;
+            ballAngle = 0f;
+            ballDistance = 1f;
         }
 
-        // Переопределяем видимость мяча с учетом симулированного лага камеры
-        bool ballVisible = yoloCamera.IsBallVisible && !(burstDropoutRemaining > 0);
-        if (ballVisible) 
+        // Кэшируем результат в полях агента: используется здесь же, в CalculateRewards и в diagLogger,
+        // чтобы вся логика читала мяч из одного места вне зависимости от источника
+        lastBallVisible = ballVisible;
+        lastBallAngle = ballAngle;
+        lastBallDist = ballDistance;
+
+        if (ballVisible)
         {
             lastDetectionTime = Time.time;
-            lastKnownBallAngle = yoloCamera.RelativeAngle;
+            lastKnownBallAngle = ballAngle;
         }
-        
+
         // Отправляем данные камеры в нейросеть
-        sensor.AddObservation(ballVisible ? yoloCamera.RelativeAngle : 0f);  // 4 (угол до мяча)
-        sensor.AddObservation(ballVisible ? yoloCamera.NormalizedDistance : 1f); // 5 (дистанция до мяча)
+        sensor.AddObservation(ballVisible ? ballAngle : 0f);       // 4 (угол до мяча)
+        sensor.AddObservation(ballVisible ? ballDistance : 1f);    // 5 (дистанция до мяча)
         sensor.AddObservation(lastKnownBallAngle);                       // 6
         sensor.AddObservation(ballVisible ? 1.0f : 0.0f);                       // 7
         sensor.AddObservation(cameraPivotMaxAngle > 0f ? cameraPivotAngle / cameraPivotMaxAngle : 0f); // 8
