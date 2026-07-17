@@ -1046,6 +1046,7 @@ GameObject:
   - component: {fileID: 6244674866155786998}
   - component: {fileID: 5633701245493237200}
   - component: {fileID: 4479401334779454422}
+  - component: {fileID: 5747478151184590571}
   m_Layer: 0
   m_Name: Robot
   m_TagString: Untagged
@@ -1199,7 +1200,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: ad9aee0468821d74d806be423b3cfec4, type: 3}
+  m_Model: {fileID: 0}
   m_InferenceDevice: 0
   m_BehaviorType: 0
   m_BehaviorName: GFSX_Brain
@@ -1248,22 +1249,18 @@ MonoBehaviour:
   fallHeightThreshold: -1
   cameraPivotMaxAngle: 45
   cameraPivotSpeed: 60
-  goalPotentialScale: 0.3
-  goalPotentialEps: 0.3
-  alignPotentialScale: 0.1
-  obstaclePotentialScale: 0.5
-  obstacleSafeDistance: 0.3
+  distanceRewardFar: 0.05
+  distanceRewardNear: 0.15
+  nearDistanceThreshold: 0.5
+  centeringRewardScale: 0.02
   actionRatePenalty: 0.01
+  obstaclePenaltyScale: 0.05
+  obstacleSafeDistance: 0.3
   irCollisionPenalty: 0.02
-  successReward: 5
-  fallPenalty: -1
   backwardPenalty: 0.01
   backwardGasThreshold: -0.1
-  lostSightPenalty: 0.5
-  explorationBonus: 0.01
-  explorationCellSize: 1
-  gripperTogglePenalty: 0.1
-  ballDroppedPenalty: 1
+  successReward: 5
+  fallPenalty: -1
 --- !u!114 &4479401334779454422
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1284,6 +1281,23 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   targetBallTag: TargetBall
+--- !u!114 &5747478151184590571
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2378955254097731838}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d07d03dfb79bb114f971f919ccb3ab30, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DiagnosticLogger
+  enableLogging: 0
+  logEveryN: 1
+  maxRows: 2000
+  enableEpisodeMetrics: 1
+  writeEpisodeCsvLocally: 0
 --- !u!1 &2949048073568733871
 GameObject:
   m_ObjectHideFlags: 0
