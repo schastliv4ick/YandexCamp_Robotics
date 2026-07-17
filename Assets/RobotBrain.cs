@@ -296,6 +296,10 @@ public class RobotBrain : Agent
             lastKnownBallAngle = yoloCamera.RelativeAngle;
         }
         
+        lastBallVisible = ballVisible;
+        lastBallAngle = ballVisible ? yoloCamera.RelativeAngle : 0f;
+        lastBallDist = ballVisible ? yoloCamera.NormalizedDistance : 1f;
+
         // Отправляем данные камеры в нейросеть
         sensor.AddObservation(ballVisible ? yoloCamera.RelativeAngle : 0f);  // 4 (угол до мяча)
         sensor.AddObservation(ballVisible ? yoloCamera.NormalizedDistance : 1f); // 5 (дистанция до мяча)

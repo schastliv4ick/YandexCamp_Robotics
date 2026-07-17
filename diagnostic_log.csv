@@ -1,0 +1,2 @@
+﻿time,step,ballSeen,ballAngle,ballDist,uz,irL,irR,gripIR,camYaw,gas,steering,hasBall,holdTicks,isRetrying,displacementX,displacementZ,heading,speed
+0.000,1,0,0.0000,0.0000,1.0000,0,0,0,-0.6788,-0.3263,0.3149,0,0,1,0.0000,0.0000,0.0340,0.0000
