@@ -488,6 +488,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1933567685896319443, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_Model
+      value: 
+      objectReference: {fileID: 5022602860645237092, guid: 061924b756ea02147baa69713e327f2f, type: 3}
+    - target: {fileID: 2085775781574909075, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 3336467127323412029, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: m_Name
       value: Arena
