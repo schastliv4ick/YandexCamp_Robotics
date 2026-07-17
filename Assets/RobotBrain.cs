@@ -176,9 +176,7 @@ public class RobotBrain : Agent
 
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
-        float randomAngle = UnityEngine.Random.Range(-180f, 180f);
-        Quaternion randomRotation = Quaternion.Euler(0f, startRotation.eulerAngles.y + randomAngle, 0f);
-        transform.SetPositionAndRotation(startPosition, randomRotation);
+        transform.SetPositionAndRotation(startPosition, startRotation);
 
         if (gripperController != null && gripperController.IsHolding)
         {
@@ -311,11 +309,10 @@ public class RobotBrain : Agent
         sensor.AddObservation(gripperController.IsHolding ? 1f : 0f); // 9
         
         Vector3 worldDisplacement = transform.position - startPosition;
-        Vector3 localDisplacement = Quaternion.Inverse(startRotation) * worldDisplacement;
         // TODO верно что дальше 5и метров не уедем?
         const float maxOffset = 5f;
-        sensor.AddObservation(Mathf.Clamp(localDisplacement.x / maxOffset, -1f, 1f));               // 10
-        sensor.AddObservation(Mathf.Clamp(localDisplacement.z / maxOffset, -1f, 1f));               // 11
+        sensor.AddObservation(Mathf.Clamp(worldDisplacement.x / maxOffset, -1f, 1f));               // 10
+        sensor.AddObservation(Mathf.Clamp(worldDisplacement.z / maxOffset, -1f, 1f));               // 11
         sensor.AddObservation(transform.eulerAngles.y / 360f);                          // 12
         sensor.AddObservation(Mathf.Clamp01(rb.linearVelocity.magnitude / 0.5f));        // 13
         
