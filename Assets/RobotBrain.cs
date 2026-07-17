@@ -196,7 +196,7 @@ public class RobotBrain : Agent
             prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
                     
         holdTicks = 0;
-        currentActionLatency = Academy.Instance.IsCommunicatorOn ? UnityEngine.Random.Range(1, 3) : 0;
+        currentActionLatency = Academy.Instance.IsCommunicatorOn ? UnityEngine.Random.Range(8, 13) : 0;
         actionBuffer.Clear();
         for (int i = 0; i < currentActionLatency; i++)
         {
@@ -318,7 +318,7 @@ public class RobotBrain : Agent
         const float maxOffset = 5f;
         sensor.AddObservation(Mathf.Clamp(localDisplacement.x / maxOffset, -1f, 1f));               // 10
         sensor.AddObservation(Mathf.Clamp(localDisplacement.z / maxOffset, -1f, 1f));               // 11
-        sensor.AddObservation(transform.eulerAngles.y / 360f);                          // 12
+        sensor.AddObservation(Mathf.DeltaAngle(startRotation.eulerAngles.y, transform.eulerAngles.y) / 180f);                          // 12
         sensor.AddObservation(Mathf.Clamp01(rb.linearVelocity.magnitude / 0.5f));        // 13
         
         float timeSinceLastDetection = Time.time - lastDetectionTime;
