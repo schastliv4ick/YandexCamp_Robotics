@@ -196,7 +196,7 @@ public class RobotBrain : Agent
             prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
                     
         holdTicks = 0;
-        currentActionLatency = Academy.Instance.IsCommunicatorOn ? UnityEngine.Random.Range(8, 14) : 0;
+        currentActionLatency = Academy.Instance.IsCommunicatorOn ? UnityEngine.Random.Range(1, 3) : 0;
         actionBuffer.Clear();
         for (int i = 0; i < currentActionLatency; i++)
         {
@@ -310,16 +310,17 @@ public class RobotBrain : Agent
         // Оставшиеся наблюдения (состояние клешни, смещение, одометрия) отправляем без изменений
         sensor.AddObservation(gripperController.IsHolding ? 1f : 0f); // 9
         
-        Vector3 offset = transform.position - startPosition;
+        Vector3 worldDisplacement = transform.position - startPosition;
+        Vector3 localDisplacement = Quaternion.Inverse(startRotation) * worldDisplacement;
         // TODO верно что дальше 5и метров не уедем?
         const float maxOffset = 5f;
-        sensor.AddObservation(Mathf.Clamp(offset.x / maxOffset, -1f, 1f));               // 10
-        sensor.AddObservation(Mathf.Clamp(offset.z / maxOffset, -1f, 1f));               // 11
+        sensor.AddObservation(Mathf.Clamp(localDisplacement.x / maxOffset, -1f, 1f));               // 10
+        sensor.AddObservation(Mathf.Clamp(localDisplacement.z / maxOffset, -1f, 1f));               // 11
         sensor.AddObservation(transform.eulerAngles.y / 360f);                          // 12
         sensor.AddObservation(Mathf.Clamp01(rb.linearVelocity.magnitude / 0.5f));        // 13
         
         float timeSinceLastDetection = Time.time - lastDetectionTime;
-        sensor.AddObservation(timeSinceLastDetection);                                           // 14
+        sensor.AddObservation(Mathf.Clamp(timeSinceLastDetection, 0f, 10f) / 10f);                                           // 14
     }
 
     public override void OnActionReceived(ActionBuffers actions)

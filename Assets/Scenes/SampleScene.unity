@@ -504,10 +504,14 @@ PrefabInstance:
     - target: {fileID: 1933567685896319443, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: m_Model
       value: 
-      objectReference: {fileID: 5022602860645237092, guid: a72d22f0a0dfbcb4faab09b4e6cd1d4f, type: 3}
+      objectReference: {fileID: 5022602860645237092, guid: 061924b756ea02147baa69713e327f2f, type: 3}
     - target: {fileID: 1933567685896319443, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: m_BehaviorType
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1933567685896319443, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_BrainParameters.NumStackedVectorObservations
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2085775781574909075, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: m_Enabled
@@ -573,6 +577,10 @@ PrefabInstance:
       propertyPath: m_LocalPosition.z
       value: -0.531
       objectReference: {fileID: 0}
+    - target: {fileID: 4479401334779454422, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: obstacleLayerMask.m_Bits
+      value: 128
+      objectReference: {fileID: 0}
     - target: {fileID: 5633701245493237200, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: MaxStep
       value: 4000
@@ -581,6 +589,10 @@ PrefabInstance:
       propertyPath: targetBall
       value: 
       objectReference: {fileID: 871263448}
+    - target: {fileID: 5747478151184590571, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: enableLogging
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8110298497231679230, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: m_LocalScale.x
       value: 1
