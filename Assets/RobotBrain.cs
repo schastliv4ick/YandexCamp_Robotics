@@ -146,6 +146,10 @@ public class RobotBrain : Agent
 
     public override void OnEpisodeBegin()
     {
+        if (!isFirstEpisode && !episodeOutcomeLogged)
+                LogEpisodeOutcome("timeout");
+        isFirstEpisode = false;
+        episodeOutcomeLogged = false;
         if (!rewardConfigLoaded && Academy.Instance.IsCommunicatorOn)
         {
             LoadRewardConfigFromEnvironmentParameters();
@@ -200,19 +204,22 @@ public class RobotBrain : Agent
         }
     }
 
+    private void LogEpisodeOutcome(string outcome)
+    {
+        if (diagLogger == null) return;
+        float robotMass = rb != null ? rb.mass : 0f;
+        float ballMassMultiplier = (targetBall != null && startBallMass > 0.0001f) ? targetBall.mass / startBallMass : 1f;
+        float ballScaleMultiplier = (targetBall != null && startBallScale.x > 0.0001f) ? targetBall.transform.localScale.x / startBallScale.x : 1f;
+        diagLogger.LogEpisodeEnd(outcome, StepCount, robotMass, ballMassMultiplier, ballScaleMultiplier, currentActionLatency);
+        episodeOutcomeLogged = true;
+    }
 
     private void CalculateRewards(float gas, float steer)
     {
         if (transform.position.y < fallHeightThreshold)
         {
             AddReward(-fallPenalty);
-            EndEpisode();
-            return;
-        }
-
-        if (gripperController != null && gripperController.IsHolding)
-        {
-            AddReward(successReward);
+            LogEpisodeOutcome("fall");
             EndEpisode();
             return;
         }
@@ -325,6 +332,7 @@ public class RobotBrain : Agent
             if (holdTicks >= 20)
             {
                 AddReward(successReward);
+                LogEpisodeOutcome("success");
                 EndEpisode();
             }
             return;
