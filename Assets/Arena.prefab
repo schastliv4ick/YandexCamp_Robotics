@@ -1063,7 +1063,7 @@ Transform:
   m_GameObject: {fileID: 2378955254097731838}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.024919987, y: -0.14313, z: -0.07812999}
+  m_LocalPosition: {x: 0.297, y: -0.14313, z: -0.562}
   m_LocalScale: {x: 0.0862069, y: 0.0862069, z: 0.0862069}
   m_ConstrainProportionsScale: 1
   m_Children:
@@ -1171,7 +1171,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2378955254097731838}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9879070871a8a75409e515d12fd13515, type: 3}
   m_Name: 
@@ -1192,7 +1192,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
     VectorObservationSize: 15
-    NumStackedVectorObservations: 4
+    NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 3
       BranchSizes: 03000000
@@ -1200,7 +1200,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 061924b756ea02147baa69713e327f2f, type: 3}
   m_InferenceDevice: 0
   m_BehaviorType: 0
   m_BehaviorName: GFSX_Brain
@@ -1279,7 +1279,7 @@ MonoBehaviour:
   hFov: 40
   obstacleLayerMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 128
   targetBallTag: TargetBall
 --- !u!114 &5747478151184590571
 MonoBehaviour:
@@ -1293,7 +1293,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d07d03dfb79bb114f971f919ccb3ab30, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DiagnosticLogger
-  enableLogging: 0
+  enableLogging: 1
   logEveryN: 1
   maxRows: 2000
   enableEpisodeMetrics: 1
@@ -1659,7 +1659,7 @@ Transform:
   m_GameObject: {fileID: 3671411061729707088}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.11, y: -0.106130004, z: 1.67}
+  m_LocalPosition: {x: -0.683, y: -0.106130004, z: 0.32}
   m_LocalScale: {x: 0.049999997, y: 0.049999997, z: 0.049999997}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -1794,13 +1794,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4173553155644547837}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.00936836, y: 0.83722824, z: 0.006117807, w: 0.5467391}
-  m_LocalPosition: {x: 3.872, y: 0.644, z: 0.708}
+  m_LocalRotation: {x: 0.13871159, y: 0.80773884, z: -0.22033276, w: 0.5289334}
+  m_LocalPosition: {x: 3.8720338, y: 0.6439915, z: 0.7080023}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6942010459621431412}
-  m_LocalEulerAnglesHint: {x: -1.174, y: 113.713, z: -0.516}
+  m_LocalEulerAnglesHint: {x: 30.178, y: 113.403, z: -0.596}
 --- !u!1 &4210274968212222800
 GameObject:
   m_ObjectHideFlags: 0
@@ -2245,7 +2245,7 @@ Transform:
   m_GameObject: {fileID: 6005434348389351414}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.64, y: -0.08596, z: -0.568}
+  m_LocalPosition: {x: 1.657, y: -0.08596, z: -0.531}
   m_LocalScale: {x: 0.3, y: 0.3, z: 0.3}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -2762,7 +2762,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0.21891975, y: -0.14313, z: 0.16987002}
-  m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 8657947826623517013}
