@@ -235,7 +235,8 @@ public class RobotBrain : Agent
 
         if (yoloCamera != null && yoloCamera.IsBallVisible)
         {
-            AddReward(centeringRewardScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle))* (1f - yoloCamera.NormalizedDistance));
+            float chassisAlignment = 1f - (Mathf.Abs(cameraPivotAngle) / cameraPivotMaxAngle);
+            AddReward(centeringRewardScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle)) * chassisAlignment);
         }
 
         float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
@@ -295,11 +296,12 @@ public class RobotBrain : Agent
         }
         
         lastBallVisible = ballVisible;
-        lastBallAngle = ballVisible ? yoloCamera.RelativeAngle : 0f;
+        float ballAngleToChassis = cameraPivotAngle + (ballVisible ? yoloCamera.RelativeAngle * cameraPivotMaxAngle : 0f);
         lastBallDist = ballVisible ? yoloCamera.NormalizedDistance : 1f;
+        lastBallAngle = Mathf.Clamp(ballAngleToChassis / cameraPivotMaxAngle, -1f, 1f);
 
         // Отправляем данные камеры в нейросеть
-        sensor.AddObservation(ballVisible ? yoloCamera.RelativeAngle : 0f);  // 4 (угол до мяча)
+        sensor.AddObservation(lastBallAngle);  // 4 (угол до мяча)
         sensor.AddObservation(ballVisible ? yoloCamera.NormalizedDistance : 1f); // 5 (дистанция до мяча)
         sensor.AddObservation(lastKnownBallAngle);                       // 6
         sensor.AddObservation(ballVisible ? 1.0f : 0.0f);                       // 7
