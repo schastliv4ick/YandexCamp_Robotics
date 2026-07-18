@@ -216,7 +216,15 @@ public class RobotBrain : Agent
 
     private void CalculateRewards(float gas, float steer)
     {
-        AddReward(-0.0005f);
+        // Локальные переменные для фиксации значений на этом шаге
+        float rewardDist = 0f;
+        float rewardCentering = 0f;
+        float penaltyAction = 0f;
+        float penaltyObstacle = 0f;
+        float penaltyCollision = 0f;
+        float penaltyBackward = 0f;
+        float penaltyTime = -0.0005f;
+
         if (transform.position.y < fallHeightThreshold)
         {
             AddReward(-fallPenalty);
@@ -228,10 +236,11 @@ public class RobotBrain : Agent
         if (targetBall != null)
         {
             float currentDistance = Vector3.Distance(transform.position, targetBall.position);
-            float delta = prevDistanceToBall - currentDistance; // > 0, если стали ближе
-
+            float delta = prevDistanceToBall - currentDistance;
             float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
-            AddReward(delta * rewardScale);
+            
+            rewardDist = delta * rewardScale;
+            AddReward(rewardDist);
 
             prevDistanceToBall = currentDistance;
         }
@@ -239,31 +248,47 @@ public class RobotBrain : Agent
         if (yoloCamera != null && yoloCamera.IsBallVisible)
         {
             float chassisAlignment = 1f - (Mathf.Abs(cameraPivotAngle) / cameraPivotMaxAngle);
-            AddReward(centeringRewardScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle)) * chassisAlignment);
+            rewardCentering = centeringRewardScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle)) * chassisAlignment;
+            AddReward(rewardCentering);
         }
 
         float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
-        AddReward(-actionRatePenalty * actionMagnitude);
+        penaltyAction = -actionRatePenalty * actionMagnitude;
+        AddReward(penaltyAction);
 
         if (virtualSensors != null)
         {
             float us = virtualSensors.USNormalizedDistance; // 0 = вплотную, 1 = чисто
             if (us < obstacleSafeDistance)
             {
-                float danger = (obstacleSafeDistance - us) / obstacleSafeDistance; // 0..1
-                AddReward(-obstaclePenaltyScale * danger);
+                float danger = (obstacleSafeDistance - us) / obstacleSafeDistance;
+                penaltyObstacle = -obstaclePenaltyScale * danger;
+                AddReward(penaltyObstacle);
             }
         }
 
         if (virtualSensors != null && (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f))
         {
-            AddReward(-irCollisionPenalty);
+            penaltyCollision = -irCollisionPenalty;
+            AddReward(penaltyCollision);
         }
 
         if (gas < backwardGasThreshold)
         {
-            AddReward(-backwardPenalty);
+            penaltyBackward = -backwardPenalty;
+            AddReward(penaltyBackward);
         }
+
+        AddReward(penaltyTime);
+        
+        var stats = Academy.Instance.StatsRecorder;
+        stats.Add("ComponentRewards/1_Distance", rewardDist);
+        stats.Add("ComponentRewards/2_Centering", rewardCentering);
+        stats.Add("ComponentRewards/3_ActionRatePenalty", penaltyAction);
+        stats.Add("ComponentRewards/4_ObstaclePenalty", penaltyObstacle);
+        stats.Add("ComponentRewards/5_CollisionPenalty", penaltyCollision);
+        stats.Add("ComponentRewards/6_BackwardPenalty", penaltyBackward);
+        stats.Add("ComponentRewards/7_TimePenalty", penaltyTime);
     }
 
     public override void CollectObservations(VectorSensor sensor)
