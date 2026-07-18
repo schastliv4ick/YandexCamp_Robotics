@@ -216,6 +216,7 @@ public class RobotBrain : Agent
 
     private void CalculateRewards(float gas, float steer)
     {
+        AddReward(-0.002f);
         if (transform.position.y < fallHeightThreshold)
         {
             AddReward(-fallPenalty);
