@@ -49,6 +49,9 @@ public class RobotBrain : Agent
     [SerializeField] private float successReward = 5.0f;
     [SerializeField] private float fallPenalty = 1.0f;
 
+    [Header("9. Награда за тик удержания мяча")]
+    [SerializeField] private float holdingBallReward = 0.2f;
+
     private Queue<float[]> actionBuffer = new Queue<float[]>();
     private int currentActionLatency = 5;
     private int holdTicks = 0;
@@ -355,7 +358,7 @@ public class RobotBrain : Agent
                 trackController.SteerInput = 0;
             }
             holdTicks++;
-            AddReward(0.02f);
+            AddReward(holdingBallReward);
             if (holdTicks >= 20)
             {
                 AddReward(successReward);
