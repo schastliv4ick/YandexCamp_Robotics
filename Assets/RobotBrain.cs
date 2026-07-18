@@ -36,7 +36,7 @@ public class RobotBrain : Agent
 
     [Header("4. Дистанция до стен (УЗ, континуальный штраф)")]
     [SerializeField] private float obstaclePenaltyScale = 0.05f;
-    [SerializeField] private float obstacleSafeDistance = 0.3f;
+    [SerializeField] private float obstacleSafeDistance = 0.07f;
 
     [Header("5. Реальный контакт со стеной (ИК, ближний диапазон)")]
     [SerializeField] private float irCollisionPenalty = 0.02f;
