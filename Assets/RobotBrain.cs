@@ -384,11 +384,13 @@ public class RobotBrain : Agent
         if (cameraPivot != null)
             cameraPivot.localRotation = Quaternion.Euler(0f, cameraPivotAngle, 0f);
 
-        int gripperCommand = actions.DiscreteActions[0];
-        if (gripperController != null)
+        // захват автоматический, не требуется ответ модели
+        if (gripperController != null && virtualSensors != null)
         {
-            if (gripperCommand == 1) gripperController.GripperCloseCommand = true;
-            else if (gripperCommand == 2) gripperController.GripperCloseCommand = false;
+            if (virtualSensors.GripperIRBallDetected > 0.5f)
+            {
+                gripperController.GripperCloseCommand = true;
+            }
         }
 
         CalculateRewards(gas, steer);
