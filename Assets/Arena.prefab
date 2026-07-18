@@ -1196,8 +1196,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 15
-    NumStackedVectorObservations: 1
+    VectorObservationSize: 13
+    NumStackedVectorObservations: 4
     m_ActionSpec:
       m_NumContinuousActions: 3
       BranchSizes: 03000000
@@ -1244,7 +1244,7 @@ MonoBehaviour:
   agentParameters:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
-  MaxStep: 4000
+  MaxStep: 2000
   trackController: {fileID: 1677057379135965520}
   gripperController: {fileID: 343155045744222010}
   virtualSensors: {fileID: 8740193334231164096}

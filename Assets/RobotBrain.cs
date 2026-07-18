@@ -313,12 +313,6 @@ public class RobotBrain : Agent
         // Оставшиеся наблюдения (состояние клешни, смещение, одометрия) отправляем без изменений
         sensor.AddObservation(gripperController.IsHolding ? 1f : 0f); // 9
         
-        Vector3 worldDisplacement = transform.position - startPosition;
-        Vector3 localDisplacement = Quaternion.Inverse(startRotation) * worldDisplacement;
-        // TODO верно что дальше 5и метров не уедем?
-        const float maxOffset = 5f;
-        sensor.AddObservation(Mathf.Clamp(localDisplacement.x / maxOffset, -1f, 1f));               // 10
-        sensor.AddObservation(Mathf.Clamp(localDisplacement.z / maxOffset, -1f, 1f));               // 11
         sensor.AddObservation(Mathf.DeltaAngle(startRotation.eulerAngles.y, transform.eulerAngles.y) / 180f);                          // 12
         sensor.AddObservation(Mathf.Clamp01(rb.linearVelocity.magnitude / 0.5f));        // 13
         
