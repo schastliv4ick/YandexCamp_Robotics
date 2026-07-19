@@ -35,15 +35,22 @@ public class TrackController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        // Читаем значения из свойств, а не с клавиатуры
         float steer = Mathf.Clamp(SteerInput, -1f, 1f);
         float gas = Mathf.Clamp(GasInput, -1f, 1f);
 
         float targetLinear = Mathf.Clamp(gas * maxLinearCmd, -maxLinearCmd, maxLinearCmd);
         float targetAngular = Mathf.Clamp(steer * turnK, -1f, 1f);
 
-        float linearAccelRate = Mathf.Abs(targetLinear) > 0.0001f ? acceleration : deceleration;
-        float angularAccelRate = Mathf.Abs(targetAngular) > 0.0001f ? turnAcceleration : turnDeceleration;
+        float baselineMass = 2.5f;
+        float massFactor = rb != null ? (baselineMass / rb.mass) : 1f;
+
+        float effectiveAcceleration = acceleration * massFactor;
+        float effectiveDeceleration = deceleration * massFactor;
+        float effectiveTurnAcceleration = turnAcceleration * massFactor;
+        float effectiveTurnDeceleration = turnDeceleration * massFactor;
+
+        float linearAccelRate = Mathf.Abs(targetLinear) > 0.0001f ? effectiveAcceleration : effectiveDeceleration;
+        float angularAccelRate = Mathf.Abs(targetAngular) > 0.0001f ? effectiveTurnAcceleration : effectiveTurnDeceleration;
 
         currentLinearVelocity = Mathf.MoveTowards(currentLinearVelocity, targetLinear, linearAccelRate * Time.fixedDeltaTime);
         currentAngularVelocity = Mathf.MoveTowards(currentAngularVelocity, targetAngular, angularAccelRate * Time.fixedDeltaTime);
@@ -60,21 +67,17 @@ public class TrackController : MonoBehaviour
         float linearSpeed = (leftSpeed + rightSpeed) * 0.5f;
         float angularSpeed = (leftSpeed - rightSpeed) * 0.5f;
 
-        Vector3 movement = transform.forward * linearSpeed * Time.fixedDeltaTime;
-        Quaternion rotationDelta = Quaternion.Euler(0f, angularSpeed * turnSpeed * Time.fixedDeltaTime, 0f);
-
-        if (Mathf.Abs(linearSpeed) < 0.0001f && Mathf.Abs(angularSpeed) < 0.0001f)
-        {
-            return;
-        }
 
         if (rb != null)
         {
-            rb.MovePosition(rb.position + movement);
-            rb.MoveRotation(rb.rotation * rotationDelta);
+            rb.linearVelocity = transform.forward * linearSpeed;
+            float rotationDegreesPerSecond = angularSpeed * turnSpeed;
+            rb.angularVelocity = transform.up * (rotationDegreesPerSecond * Mathf.Deg2Rad);
         }
         else
         {
+            Vector3 movement = transform.forward * linearSpeed * Time.fixedDeltaTime;
+            Quaternion rotationDelta = Quaternion.Euler(0f, angularSpeed * turnSpeed * Time.fixedDeltaTime, 0f);
             transform.position += movement;
             transform.rotation *= rotationDelta;
         }
