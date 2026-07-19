@@ -36,5 +36,5 @@ environment_parameters:
   distance_reward_far: 0.4
   centering_reward_scale: 0.004
   success_reward: 30
-  backwardPenalty: 0.0005
+  backward_penalty: 0.0005
   action_rate_penalty: 0.0001
