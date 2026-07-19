@@ -34,7 +34,7 @@ environment_parameters:
   ir_collision_penalty: 0.002
   distance_reward_near: 1
   distance_reward_far: 0.4
-  centering_reward_scale: 0.004
+  centering_reward_scale: 0.0002
   success_reward: 30
   backward_penalty: 0.0005
   action_rate_penalty: 0.0001

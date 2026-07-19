@@ -323,7 +323,7 @@ public class RobotBrain : Agent
         if (ballVisible) 
         {
             lastDetectionTime = Time.time;
-            lastKnownBallAngle = yoloCamera.RelativeAngle;
+            lastKnownBallAngle = ballVisible ? yoloCamera.RelativeAngle : 0f;
         }
         
         lastBallVisible = ballVisible;
@@ -332,7 +332,7 @@ public class RobotBrain : Agent
         lastBallAngle = Mathf.Clamp(ballAngleToChassis / cameraPivotMaxAngle, -1f, 1f);
 
         // Отправляем данные камеры в нейросеть
-        sensor.AddObservation(lastBallAngle);  // 4 (угол до мяча)
+        sensor.AddObservation(ballVisible ? yoloCamera.RelativeAngle : 0f);  // 4 (угол до мяча)
         sensor.AddObservation(ballVisible ? yoloCamera.NormalizedDistance : 1f); // 5 (дистанция до мяча)
         sensor.AddObservation(lastKnownBallAngle);                       // 6
         sensor.AddObservation(ballVisible ? 1.0f : 0.0f);                       // 7
