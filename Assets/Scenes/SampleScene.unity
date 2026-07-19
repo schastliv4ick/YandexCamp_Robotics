@@ -488,10 +488,22 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1072829559464840432, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 13400000, guid: ccb50bdd93b6c804d839ba67dff52d3f, type: 2}
     - target: {fileID: 3336467127323412029, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: m_Name
       value: Arena
       objectReference: {fileID: 0}
+    - target: {fileID: 5024595514314412879, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 13400000, guid: ccb50bdd93b6c804d839ba67dff52d3f, type: 2}
+    - target: {fileID: 8260634499227968664, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 13400000, guid: ccb50bdd93b6c804d839ba67dff52d3f, type: 2}
     - target: {fileID: 8657947826623517013, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: m_LocalPosition.x
       value: -4.52492
