@@ -165,13 +165,13 @@ public class RobotBrain : Agent
             if (rb != null)
             {
                 // Рандомизируем массу робота от 1.0кг до 4.0кг (базовый вес 2.5кг)
-                rb.mass = UnityEngine.Random.Range(1.0f, 4.0f);
+                rb.mass = UnityEngine.Random.Range(2.2f, 2.8f);
             }
             if (trackController != null)
             {
                 // Меняем динамические характеристики двигателей
-                trackController.moveSpeed = UnityEngine.Random.Range(0.3f, 0.7f);   // базовый м/с +-40%
-                trackController.turnSpeed = UnityEngine.Random.Range(80f, 160f);    // скорость вращения
+                trackController.moveSpeed = UnityEngine.Random.Range(0.4f, 0.6f);  
+                trackController.turnSpeed = UnityEngine.Random.Range(108f, 132f);    // скорость вращения
                 // TODO Будем реализовывать сглаживание внутри trackcontroller?
                 // trackController.smoothing = UnityEngine.Random.Range(0.01f, 0.25f); // инерция привода
             }
