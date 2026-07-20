@@ -86,6 +86,10 @@ public class RobotBrain : Agent
     private bool isFirstEpisode = true;
     private bool rewardConfigLoaded = false;
 
+    // --- Anti-stuck (deathlydh) ---
+    private Vector3 lastPosition;
+    private int stuckTimer = 0;
+
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
@@ -203,6 +207,9 @@ public class RobotBrain : Agent
             prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
 
         holdTicks = 0;
+
+        stuckTimer = 0;
+        lastPosition = transform.position;
 
         currentActionLatency = Academy.Instance.IsCommunicatorOn ? UnityEngine.Random.Range(8, 13) : 0;
         actionBuffer.Clear();
@@ -408,6 +415,34 @@ public class RobotBrain : Agent
             gas = Mathf.Clamp(actions.ContinuousActions[0], -1f, 1f);
             steer = Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
             cameraSignal = Mathf.Clamp(actions.ContinuousActions[2], -1f, 1f);
+        }
+
+        // === АНТИ-ЗАСТРЕВАНИЕ (deathlydh) ===
+        // Если робот КОМАНДУЕТ движение, но реально не смещается — считаем застрявшим.
+        if (Academy.Instance.IsCommunicatorOn)
+        {
+            if (Mathf.Abs(gas) > 0.1f || Mathf.Abs(steer) > 0.1f)
+            {
+                stuckTimer++;
+                if (stuckTimer >= 200)
+                {
+                    float distanceTravelled = Vector3.Distance(transform.position, lastPosition);
+                    if (distanceTravelled < 0.5f)
+                    {
+                        AddReward(-0.5f);
+                        LogEpisodeOutcome("timeout");
+                        EndEpisode();
+                        return;
+                    }
+                    stuckTimer = 0;
+                    lastPosition = transform.position;
+                }
+            }
+            else
+            {
+                stuckTimer = 0;
+                lastPosition = transform.position;
+            }
         }
 
         if (trackController != null)
