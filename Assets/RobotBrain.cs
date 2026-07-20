@@ -23,10 +23,10 @@ public class RobotBrain : Agent
     [SerializeField] private float cameraPivotSpeed = 60f;
 
     [Header("Rewards")]
-    [Header("1. Сближение с мячом (Distance Delta)")]
-    [SerializeField] private float distanceRewardFar = 0.05f; // награда за 1 метр сближения, если мяч далеко
-    [SerializeField] private float distanceRewardNear = 0.15f; // награда за 1 метр сближения, если мяч близко
-    [SerializeField] private float nearDistanceThreshold = 0.5f; // порог "близко" в метрах
+    [Header("1. Сближение с мячом (Distance Delta, deathlydh REWARD #1)")]
+    [SerializeField] private float distanceRewardBase = 2.0f;   // базовый множитель, когда мяч далеко (dist=1)
+    [SerializeField] private float distanceRewardGain = 4.0f;   // добавка к множителю по мере приближения (dist->0)
+    [SerializeField] private float distanceDeltaSpikeLimit = 0.5f; // отсечка спайков дельты (телепорт/сброс)
 
     [Header("2. Центрирование мяча перед захватом")]
     [SerializeField] private float centeringRewardScale = 0.02f;
@@ -86,6 +86,9 @@ public class RobotBrain : Agent
     private bool isFirstEpisode = true;
     private bool rewardConfigLoaded = false;
 
+    // deathlydh REWARD #1: был ли мяч виден на прошлом шаге начисления дистанции
+    private bool wasBallVisibleLastRewardStep = false;
+
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
@@ -114,8 +117,9 @@ public class RobotBrain : Agent
     {
         var p = Academy.Instance.EnvironmentParameters;
 
-        distanceRewardFar = p.GetWithDefault("distance_reward_far", distanceRewardFar);
-        distanceRewardNear = p.GetWithDefault("distance_reward_near", distanceRewardNear);
+        distanceRewardBase = p.GetWithDefault("distance_reward_base", distanceRewardBase);
+        distanceRewardGain = p.GetWithDefault("distance_reward_gain", distanceRewardGain);
+        distanceDeltaSpikeLimit = p.GetWithDefault("distance_delta_spike_limit", distanceDeltaSpikeLimit);
         nearDistanceThreshold = p.GetWithDefault("near_distance_threshold", nearDistanceThreshold);
         centeringRewardScale = p.GetWithDefault("centering_reward_scale", centeringRewardScale);
         actionRatePenalty = p.GetWithDefault("action_rate_penalty", actionRatePenalty);
@@ -128,7 +132,7 @@ public class RobotBrain : Agent
         fallPenalty = p.GetWithDefault("fall_penalty", fallPenalty);
 
         Debug.Log($"[RobotBrain] Reward config: success={successReward:F2} fall={fallPenalty:F2} " +
-            $"distNear={distanceRewardNear:F3} distFar={distanceRewardFar:F3} " +
+            $"distBase={distanceRewardBase:F3} distGain={distanceRewardGain:F3} " +
             $"obstaclePenalty={obstaclePenaltyScale:F3} actionRate={actionRatePenalty:F3}");
     }
 
@@ -202,6 +206,8 @@ public class RobotBrain : Agent
         if (targetBall != null)
             prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
 
+        wasBallVisibleLastRewardStep = false;
+
         holdTicks = 0;
 
         currentActionLatency = Academy.Instance.IsCommunicatorOn ? UnityEngine.Random.Range(8, 13) : 0;
@@ -244,16 +250,38 @@ public class RobotBrain : Agent
             return;
         }
 
-        if (targetBall != null)
+        // === DISTANCE DELTA (deathlydh, REWARD #1) ===
+        // Награда за сближение начисляется ТОЛЬКО когда мяч виден, а множитель растёт
+        // по мере приближения: proximity = base + gain*(1 - normalizedDist).
+        if (targetBall != null && lastBallVisible)
         {
             float currentDistance = Vector3.Distance(transform.position, targetBall.position);
-            float delta = prevDistanceToBall - currentDistance;
-            float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
 
-            rewardDist = delta * rewardScale;
-            AddReward(rewardDist);
+            // При ПЕРВОМ появлении мяча (на прошлом шаге его не видели) дельту не начисляем —
+            // сбрасываем опорную дистанцию, чтобы не поймать ложный скачок.
+            if (!wasBallVisibleLastRewardStep)
+            {
+                prevDistanceToBall = currentDistance;
+            }
+            else
+            {
+                float delta = prevDistanceToBall - currentDistance;
+                // Отсекаем спайки (телепорт мяча при ResetBall и т.п.)
+                if (Mathf.Abs(delta) < distanceDeltaSpikeLimit)
+                {
+                    float proximityMultiplier = distanceRewardBase
+                        + distanceRewardGain * (1f - Mathf.Clamp01(lastBallDist));
+                    rewardDist = delta * proximityMultiplier;
+                    AddReward(rewardDist);
+                }
+            }
 
             prevDistanceToBall = currentDistance;
+            wasBallVisibleLastRewardStep = true;
+        }
+        else
+        {
+            wasBallVisibleLastRewardStep = false;
         }
 
         if (yoloCamera != null && yoloCamera.IsBallVisible)

@@ -32,8 +32,8 @@ behaviors:
 environment_parameters:
   obstacle_penalty_scale: 0.001
   ir_collision_penalty: 0.002
-  distance_reward_near: 1
-  distance_reward_far: 0.4
+  distance_reward_base: 2
+  distance_reward_gain: 4
   centering_reward_scale: 0.004
   success_reward: 30
   backwardPenalty: 0.0005
