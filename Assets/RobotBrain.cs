@@ -165,13 +165,13 @@ public class RobotBrain : Agent
             if (rb != null)
             {
                 // Рандомизируем массу робота от 1.0кг до 4.0кг (базовый вес 2.5кг)
-                rb.mass = UnityEngine.Random.Range(1.0f, 4.0f);
+                rb.mass = UnityEngine.Random.Range(2.2f, 2.8f);
             }
             if (trackController != null)
             {
                 // Меняем динамические характеристики двигателей
-                trackController.moveSpeed = UnityEngine.Random.Range(0.3f, 0.7f);   // базовый м/с +-40%
-                trackController.turnSpeed = UnityEngine.Random.Range(80f, 160f);    // скорость вращения
+                trackController.moveSpeed = UnityEngine.Random.Range(0.4f, 0.6f);  
+                trackController.turnSpeed = UnityEngine.Random.Range(108f, 132f);    // скорость вращения
                 // TODO Будем реализовывать сглаживание внутри trackcontroller?
                 // trackController.smoothing = UnityEngine.Random.Range(0.01f, 0.25f); // инерция привода
             }
@@ -323,7 +323,7 @@ public class RobotBrain : Agent
         if (ballVisible) 
         {
             lastDetectionTime = Time.time;
-            lastKnownBallAngle = yoloCamera.RelativeAngle;
+            lastKnownBallAngle = ballVisible ? yoloCamera.RelativeAngle : 0f;
         }
         
         lastBallVisible = ballVisible;
@@ -332,7 +332,7 @@ public class RobotBrain : Agent
         lastBallAngle = Mathf.Clamp(ballAngleToChassis / cameraPivotMaxAngle, -1f, 1f);
 
         // Отправляем данные камеры в нейросеть
-        sensor.AddObservation(lastBallAngle);  // 4 (угол до мяча)
+        sensor.AddObservation(ballVisible ? yoloCamera.RelativeAngle : 0f);  // 4 (угол до мяча)
         sensor.AddObservation(ballVisible ? yoloCamera.NormalizedDistance : 1f); // 5 (дистанция до мяча)
         sensor.AddObservation(lastKnownBallAngle);                       // 6
         sensor.AddObservation(ballVisible ? 1.0f : 0.0f);                       // 7
@@ -404,7 +404,7 @@ public class RobotBrain : Agent
         cameraPivotAngle = Mathf.Clamp(cameraPivotAngle + cameraSignal * cameraPivotSpeed * Time.fixedDeltaTime,
             -cameraPivotMaxAngle, cameraPivotMaxAngle);
         if (cameraPivot != null)
-            cameraPivot.localRotation = Quaternion.Euler(0f, cameraPivotAngle, 0f);
+            cameraPivot.localRotation = Quaternion.Euler(15f, cameraPivotAngle, 0f);
 
         // захват автоматический, не требуется ответ модели
         if (gripperController != null && virtualSensors != null)
