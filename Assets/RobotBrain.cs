@@ -242,7 +242,7 @@ public class RobotBrain : Agent
             float delta = prevDistanceToBall - currentDistance;
             float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
             
-            rewardDist = delta * rewardScale;
+            rewardDist = delta * rewardScale * (lastBallVisible ? 1f : 0f);
             AddReward(rewardDist);
 
             prevDistanceToBall = currentDistance;
