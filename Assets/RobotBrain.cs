@@ -24,8 +24,8 @@ public class RobotBrain : Agent
 
     [Header("Rewards")]
     [Header("1. Сближение с мячом (Distance Delta)")]
-    [SerializeField] private float distanceRewardFar = 0.05f;   // награда за 1 метр сближения, если мяч далеко
-    [SerializeField] private float distanceRewardNear = 0.15f;  // награда за 1 метр сближения, если мяч близко
+    [SerializeField] private float distanceRewardFar = 0.05f; // награда за 1 метр сближения, если мяч далеко
+    [SerializeField] private float distanceRewardNear = 0.15f; // награда за 1 метр сближения, если мяч близко
     [SerializeField] private float nearDistanceThreshold = 0.5f; // порог "близко" в метрах
 
     [Header("2. Центрирование мяча перед захватом")]
@@ -52,17 +52,20 @@ public class RobotBrain : Agent
     [Header("9. Награда за тик удержания мяча")]
     [SerializeField] private float holdingBallReward = 0.2f;
 
+    [Header("10. Speed penalty у мяча (deathlydh)")]
+    [SerializeField] private float speedNearBallDistanceThreshold = 0.25f;
+    [SerializeField] private float speedNearBallGasThreshold = 0.4f;
+    [SerializeField] private float speedNearBallPenalty = 0.01f;
+
     private Queue<float[]> actionBuffer = new Queue<float[]>();
     private int currentActionLatency = 5;
     private int holdTicks = 0;
-
     private int burstDropoutRemaining = 0;
     private float lastDetectionTime = 0;
 
     private Rigidbody rb;
     private Vector3 startPosition;
     private Quaternion startRotation;
-
     private float prevDistanceToBall;
     private float prevGas;
     private float prevSteer;
@@ -71,7 +74,7 @@ public class RobotBrain : Agent
 
     private Vector3 startBallScale;
     private float startBallMass;
-    private Vector3 startBallLocalPosition; 
+    private Vector3 startBallLocalPosition;
 
     private DiagnosticLogger diagLogger; // это всегда null, если не включен в сцене
 
@@ -81,14 +84,12 @@ public class RobotBrain : Agent
 
     private bool episodeOutcomeLogged = false;
     private bool isFirstEpisode = true;
-
     private bool rewardConfigLoaded = false;
 
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
         diagLogger = GetComponent<DiagnosticLogger>();
-
         startPosition = transform.position;
         startRotation = transform.rotation;
 
@@ -100,11 +101,11 @@ public class RobotBrain : Agent
             startBallMass = targetBall.mass;
             startBallLocalPosition = targetBall.transform.localPosition;
         }
+
         if (targetBall == null) Debug.LogWarning("[RobotBrain] targetBall не назначен — награда за сближение всегда будет 0!");
         if (virtualSensors == null) Debug.LogWarning("[RobotBrain] virtualSensors не назначен — штрафы за препятствия работать не будут!");
         if (yoloCamera == null) Debug.LogWarning("[RobotBrain] yoloCamera не назначен — награда за центрирование всегда будет 0!");
         if (gripperController == null) Debug.LogWarning("[RobotBrain] gripperController не назначен — терминальная награда за захват не сработает!");
-    
     }
 
     // считываем веса из конфига
@@ -122,19 +123,19 @@ public class RobotBrain : Agent
         obstacleSafeDistance = p.GetWithDefault("obstacle_safe_distance", obstacleSafeDistance);
         irCollisionPenalty = p.GetWithDefault("ir_collision_penalty", irCollisionPenalty);
         backwardPenalty = p.GetWithDefault("backward_penalty", backwardPenalty);
-        backwardGasThreshold  = p.GetWithDefault("backward_gas_threshold", backwardGasThreshold);
+        backwardGasThreshold = p.GetWithDefault("backward_gas_threshold", backwardGasThreshold);
         successReward = p.GetWithDefault("success_reward", successReward);
         fallPenalty = p.GetWithDefault("fall_penalty", fallPenalty);
 
         Debug.Log($"[RobotBrain] Reward config: success={successReward:F2} fall={fallPenalty:F2} " +
-                  $"distNear={distanceRewardNear:F3} distFar={distanceRewardFar:F3} " +
-                  $"obstaclePenalty={obstaclePenaltyScale:F3} actionRate={actionRatePenalty:F3}");
+            $"distNear={distanceRewardNear:F3} distFar={distanceRewardFar:F3} " +
+            $"obstaclePenalty={obstaclePenaltyScale:F3} actionRate={actionRatePenalty:F3}");
     }
 
     public void ResetBall()
     {
         if (targetBall == null) return;
-        
+
         float randomX = UnityEngine.Random.Range(-0.5f, 0.5f);
         float randomZ = UnityEngine.Random.Range(-0.5f, 0.5f);
         Vector3 randomOffset = new Vector3(randomX, 0f, randomZ);
@@ -146,13 +147,13 @@ public class RobotBrain : Agent
         targetBall.angularVelocity = Vector3.zero;
     }
 
-
     public override void OnEpisodeBegin()
     {
         if (!isFirstEpisode && !episodeOutcomeLogged)
-                LogEpisodeOutcome("timeout");
+            LogEpisodeOutcome("timeout");
         isFirstEpisode = false;
         episodeOutcomeLogged = false;
+
         if (!rewardConfigLoaded && Academy.Instance.IsCommunicatorOn)
         {
             LoadRewardConfigFromEnvironmentParameters();
@@ -160,6 +161,7 @@ public class RobotBrain : Agent
         }
 
         ResetBall();
+
         if (Academy.Instance.IsCommunicatorOn)
         {
             if (rb != null)
@@ -167,11 +169,12 @@ public class RobotBrain : Agent
                 // Рандомизируем массу робота от 1.0кг до 4.0кг (базовый вес 2.5кг)
                 rb.mass = UnityEngine.Random.Range(2.2f, 2.8f);
             }
+
             if (trackController != null)
             {
                 // Меняем динамические характеристики двигателей
-                trackController.moveSpeed = UnityEngine.Random.Range(0.4f, 0.6f);  
-                trackController.turnSpeed = UnityEngine.Random.Range(108f, 132f);    // скорость вращения
+                trackController.moveSpeed = UnityEngine.Random.Range(0.4f, 0.6f);
+                trackController.turnSpeed = UnityEngine.Random.Range(108f, 132f); // скорость вращения
                 // TODO Будем реализовывать сглаживание внутри trackcontroller?
                 // trackController.smoothing = UnityEngine.Random.Range(0.01f, 0.25f); // инерция привода
             }
@@ -179,6 +182,7 @@ public class RobotBrain : Agent
 
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
+
         float randomAngle = UnityEngine.Random.Range(-180f, 180f);
         Quaternion randomRotation = Quaternion.Euler(0f, startRotation.eulerAngles.y + randomAngle, 0f);
         transform.SetPositionAndRotation(startPosition, randomRotation);
@@ -197,8 +201,9 @@ public class RobotBrain : Agent
 
         if (targetBall != null)
             prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
-                    
+
         holdTicks = 0;
+
         currentActionLatency = Academy.Instance.IsCommunicatorOn ? UnityEngine.Random.Range(8, 13) : 0;
         actionBuffer.Clear();
         for (int i = 0; i < currentActionLatency; i++)
@@ -210,9 +215,11 @@ public class RobotBrain : Agent
     private void LogEpisodeOutcome(string outcome)
     {
         if (diagLogger == null) return;
+
         float robotMass = rb != null ? rb.mass : 0f;
         float ballMassMultiplier = (targetBall != null && startBallMass > 0.0001f) ? targetBall.mass / startBallMass : 1f;
         float ballScaleMultiplier = (targetBall != null && startBallScale.x > 0.0001f) ? targetBall.transform.localScale.x / startBallScale.x : 1f;
+
         diagLogger.LogEpisodeEnd(outcome, StepCount, robotMass, ballMassMultiplier, ballScaleMultiplier, currentActionLatency);
         episodeOutcomeLogged = true;
     }
@@ -226,6 +233,7 @@ public class RobotBrain : Agent
         float penaltyObstacle = 0f;
         float penaltyCollision = 0f;
         float penaltyBackward = 0f;
+        float penaltySpeedNearBall = 0f;
         float penaltyTime = -0.0005f;
 
         if (transform.position.y < fallHeightThreshold)
@@ -241,7 +249,7 @@ public class RobotBrain : Agent
             float currentDistance = Vector3.Distance(transform.position, targetBall.position);
             float delta = prevDistanceToBall - currentDistance;
             float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
-            
+
             rewardDist = delta * rewardScale;
             AddReward(rewardDist);
 
@@ -282,8 +290,16 @@ public class RobotBrain : Agent
             AddReward(penaltyBackward);
         }
 
+        // === SPEED PENALTY NEAR BALL (deathlydh, REWARD #8) ===
+        // Штраф за высокую скорость вблизи мяча — не таранить!
+        if (lastBallVisible && lastBallDist < speedNearBallDistanceThreshold && Mathf.Abs(gas) > speedNearBallGasThreshold)
+        {
+            penaltySpeedNearBall = -speedNearBallPenalty;
+            AddReward(penaltySpeedNearBall);
+        }
+
         AddReward(penaltyTime);
-        
+
         var stats = Academy.Instance.StatsRecorder;
         stats.Add("ComponentRewards/1_Distance", rewardDist);
         stats.Add("ComponentRewards/2_Centering", rewardCentering);
@@ -292,6 +308,7 @@ public class RobotBrain : Agent
         stats.Add("ComponentRewards/5_CollisionPenalty", penaltyCollision);
         stats.Add("ComponentRewards/6_BackwardPenalty", penaltyBackward);
         stats.Add("ComponentRewards/7_TimePenalty", penaltyTime);
+        stats.Add("ComponentRewards/8_SpeedNearBallPenalty", penaltySpeedNearBall);
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -303,9 +320,9 @@ public class RobotBrain : Agent
         float noiseUS = Academy.Instance.IsCommunicatorOn ? UnityEngine.Random.Range(-0.05f, 0.05f) : 0f;
         float noisyDistance = Mathf.Clamp01(virtualSensors.USNormalizedDistance + noiseUS);
         sensor.AddObservation(noisyDistance); // 0 (УЗ дальномер с шумом)
-        
+
         // Боковые ИК датчики оставляем бинарными (1 или 0)
-        sensor.AddObservation(virtualSensors.LeftIRObstacle);  // 1
+        sensor.AddObservation(virtualSensors.LeftIRObstacle); // 1
         sensor.AddObservation(virtualSensors.RightIRObstacle); // 2
         sensor.AddObservation(virtualSensors.GripperIRBallDetected); // 3
 
@@ -320,32 +337,30 @@ public class RobotBrain : Agent
 
         // Переопределяем видимость мяча с учетом симулированного лага камеры
         bool ballVisible = yoloCamera.IsBallVisible && !(burstDropoutRemaining > 0);
-        if (ballVisible) 
+        if (ballVisible)
         {
             lastDetectionTime = Time.time;
             lastKnownBallAngle = ballVisible ? yoloCamera.RelativeAngle : 0f;
         }
-        
+
         lastBallVisible = ballVisible;
         float ballAngleToChassis = cameraPivotAngle + (ballVisible ? yoloCamera.RelativeAngle * cameraPivotMaxAngle : 0f);
         lastBallDist = ballVisible ? yoloCamera.NormalizedDistance : 1f;
         lastBallAngle = Mathf.Clamp(ballAngleToChassis / cameraPivotMaxAngle, -1f, 1f);
 
         // Отправляем данные камеры в нейросеть
-        sensor.AddObservation(ballVisible ? yoloCamera.RelativeAngle : 0f);  // 4 (угол до мяча)
+        sensor.AddObservation(ballVisible ? yoloCamera.RelativeAngle : 0f); // 4 (угол до мяча)
         sensor.AddObservation(ballVisible ? yoloCamera.NormalizedDistance : 1f); // 5 (дистанция до мяча)
-        sensor.AddObservation(lastKnownBallAngle);                       // 6
-        sensor.AddObservation(ballVisible ? 1.0f : 0.0f);                       // 7
+        sensor.AddObservation(lastKnownBallAngle); // 6
+        sensor.AddObservation(ballVisible ? 1.0f : 0.0f); // 7
         sensor.AddObservation(cameraPivotMaxAngle > 0f ? cameraPivotAngle / cameraPivotMaxAngle : 0f); // 8
-        
+
         // Оставшиеся наблюдения (состояние клешни, смещение, одометрия) отправляем без изменений
         sensor.AddObservation(gripperController.IsHolding ? 1f : 0f); // 9
-        
-        sensor.AddObservation(Mathf.DeltaAngle(startRotation.eulerAngles.y, transform.eulerAngles.y) / 180f);                          // 12
-        sensor.AddObservation(Mathf.Clamp01(rb.linearVelocity.magnitude / 0.5f));        // 13
-        
+        sensor.AddObservation(Mathf.DeltaAngle(startRotation.eulerAngles.y, transform.eulerAngles.y) / 180f); // 12
+        sensor.AddObservation(Mathf.Clamp01(rb.linearVelocity.magnitude / 0.5f)); // 13
         float timeSinceLastDetection = Time.time - lastDetectionTime;
-        sensor.AddObservation(Mathf.Clamp(timeSinceLastDetection, 0f, 10f) / 10f);                                           // 14
+        sensor.AddObservation(Mathf.Clamp(timeSinceLastDetection, 0f, 10f) / 10f); // 14
     }
 
     public override void OnActionReceived(ActionBuffers actions)
@@ -370,6 +385,7 @@ public class RobotBrain : Agent
         else holdTicks = 0;
 
         float gas, steer, cameraSignal;
+
         if (Academy.Instance.IsCommunicatorOn && currentActionLatency > 0)
         {
             // Кладем свежее действие нейросети в конец очереди
@@ -400,7 +416,6 @@ public class RobotBrain : Agent
             trackController.SteerInput = steer;
         }
 
-
         cameraPivotAngle = Mathf.Clamp(cameraPivotAngle + cameraSignal * cameraPivotSpeed * Time.fixedDeltaTime,
             -cameraPivotMaxAngle, cameraPivotMaxAngle);
         if (cameraPivot != null)
@@ -416,6 +431,7 @@ public class RobotBrain : Agent
         }
 
         CalculateRewards(gas, steer);
+
         prevGas = gas;
         prevSteer = steer;
 
