@@ -195,7 +195,7 @@ public class RobotBrain : Agent
 
         prevGas = 0f;
         prevSteer = 0f;
-        lastKnownBallAngle = 0f;
+        lastKnownBallAngle = UnityEngine.Random.value > 0.5f ? 1f : -1f;
         lastDetectionTime = Time.time;
         cameraPivotAngle = 0f;
 
