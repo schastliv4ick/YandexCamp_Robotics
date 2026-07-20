@@ -404,7 +404,7 @@ public class RobotBrain : Agent
         cameraPivotAngle = Mathf.Clamp(cameraPivotAngle + cameraSignal * cameraPivotSpeed * Time.fixedDeltaTime,
             -cameraPivotMaxAngle, cameraPivotMaxAngle);
         if (cameraPivot != null)
-            cameraPivot.localRotation = Quaternion.Euler(0f, cameraPivotAngle, 0f);
+            cameraPivot.localRotation = Quaternion.Euler(15f, cameraPivotAngle, 0f);
 
         // захват автоматический, не требуется ответ модели
         if (gripperController != null && virtualSensors != null)
