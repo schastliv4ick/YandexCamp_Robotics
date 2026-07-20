@@ -116,3 +116,10 @@ Assets/_Recovery
 Build_Linux/
 
 Build_Linux.zip/
+
+# Visual Studio Code — local settings
+.vscode/settings.json
+.vscode/launch.json
+
+# directory _Recovery create automatically while opening the project in Unity
+Assets/_Recovery.meta
