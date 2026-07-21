@@ -160,7 +160,6 @@ public class RobotBrain : Agent
             rewardConfigLoaded = true;
         }
 
-        ResetBall();
 
         if (Academy.Instance.IsCommunicatorOn)
         {
@@ -192,6 +191,8 @@ public class RobotBrain : Agent
             gripperController.GripperCloseCommand = false;
             gripperController.ReleaseBall();
         }
+
+        ResetBall();
 
         prevGas = 0f;
         prevSteer = 0f;
