@@ -24,8 +24,8 @@ public class RobotBrain : Agent
 
     [Header("Rewards")]
     [Header("1. Сближение с мячом (Distance Delta)")]
-    [SerializeField] private float distanceRewardFar = 0.05f; // награда за 1 метр сближения, если мяч далеко
-    [SerializeField] private float distanceRewardNear = 0.15f; // награда за 1 метр сближения, если мяч близко
+    [SerializeField] private float distanceRewardFar = 0.05f;   // награда за 1 метр сближения, если мяч далеко
+    [SerializeField] private float distanceRewardNear = 0.15f;  // награда за 1 метр сближения, если мяч близко
     [SerializeField] private float nearDistanceThreshold = 0.5f; // порог "близко" в метрах
 
     [Header("2. Центрирование мяча перед захватом")]
@@ -52,10 +52,23 @@ public class RobotBrain : Agent
     [Header("9. Награда за тик удержания мяча")]
     [SerializeField] private float holdingBallReward = 0.2f;
 
-    [Header("10. Speed penalty у мяча (deathlydh)")]
-    [SerializeField] private float speedNearBallDistanceThreshold = 0.25f;
-    [SerializeField] private float speedNearBallGasThreshold = 0.4f;
-    [SerializeField] private float speedNearBallPenalty = 0.01f;
+    [Header("10. Настройки спавна мяча (Curriculum Z-Zones)")]
+    [SerializeField] private float spawnMinX = -2.2f;
+    [SerializeField] private float spawnMaxX = 2.2f;
+    [SerializeField] private float spawnMinZ_Easy = -0.3f;
+    [SerializeField] private float spawnMaxZ_Easy = 0.5f;
+    [SerializeField] private float spawnMinZ_Medium = 0.5f;
+    [SerializeField] private float spawnMaxZ_Medium = 1.8f;
+    [SerializeField] private float spawnMinZ_Hard = 1.8f;
+    [SerializeField] private float spawnMaxZ_Hard = 2.5f;
+    [SerializeField] private LayerMask spawnCheckLayerMask; 
+    [SerializeField] private float ballClearanceRadius = 0.15f;
+
+    [Header("11. Настройки рандомизации препятствий")]
+    [Tooltip("Перетащите сюда ваши кубы-препятствия из Арены")]
+    [SerializeField] private Transform[] obstacles;
+    [Tooltip("Максимальный радиус случайного сдвига препятствия (м)")]
+    [SerializeField] private float obstacleOffsetRange = 0.3f;
 
     private Queue<float[]> actionBuffer = new Queue<float[]>();
     private int currentActionLatency = 5;
@@ -75,6 +88,7 @@ public class RobotBrain : Agent
     private Vector3 startBallScale;
     private float startBallMass;
     private Vector3 startBallLocalPosition;
+    private Vector3[] originalObstaclePositions;
 
     private DiagnosticLogger diagLogger; // это всегда null, если не включен в сцене
 
@@ -100,6 +114,19 @@ public class RobotBrain : Agent
             startBallScale = targetBall.transform.localScale;
             startBallMass = targetBall.mass;
             startBallLocalPosition = targetBall.transform.localPosition;
+        }
+
+        // Запоминаем исходные координаты препятствий для корректного сдвига без накопления дрейфа
+        if (obstacles != null && obstacles.Length > 0)
+        {
+            originalObstaclePositions = new Vector3[obstacles.Length];
+            for (int i = 0; i < obstacles.Length; i++)
+            {
+                if (obstacles[i] != null)
+                {
+                    originalObstaclePositions[i] = obstacles[i].localPosition;
+                }
+            }
         }
 
         if (targetBall == null) Debug.LogWarning("[RobotBrain] targetBall не назначен — награда за сближение всегда будет 0!");
@@ -132,15 +159,66 @@ public class RobotBrain : Agent
             $"obstaclePenalty={obstaclePenaltyScale:F3} actionRate={actionRatePenalty:F3}");
     }
 
+    private void RandomizeObstacles()
+    {
+        if (obstacles == null || originalObstaclePositions == null) return;
+        for (int i = 0; i < obstacles.Length; i++)
+        {
+            if (obstacles[i] != null)
+            {
+                float randX = UnityEngine.Random.Range(-obstacleOffsetRange, obstacleOffsetRange);
+                float randZ = UnityEngine.Random.Range(-obstacleOffsetRange, obstacleOffsetRange);
+                Vector3 offset = new Vector3(randX, 0f, randZ);
+                obstacles[i].localPosition = originalObstaclePositions[i] + offset;
+            }
+        }
+    }
+
     public void ResetBall()
     {
         if (targetBall == null) return;
 
-        float randomX = UnityEngine.Random.Range(-0.5f, 0.5f);
-        float randomZ = UnityEngine.Random.Range(-0.5f, 0.5f);
-        Vector3 randomOffset = new Vector3(randomX, 0f, randomZ);
+        Vector3 finalLocalPos = startBallLocalPosition;
+        bool positionValid = false;
+        int attempts = 0;
+        int maxAttempts = 100;
 
-        targetBall.transform.localPosition = startBallLocalPosition + randomOffset;
+        float checkRadius = (startBallScale.x * 0.5f) + ballClearanceRadius;
+
+        while (!positionValid && attempts < maxAttempts)
+        {
+            attempts++;
+
+            float randomX = UnityEngine.Random.Range(spawnMinX, spawnMaxX);
+            
+            // Распределяем спавн мяча по трем Z-зонам (Curriculum)
+            float roll = UnityEngine.Random.value;
+            float randomZ = startBallLocalPosition.z;
+            if (roll < 0.30f) // 30% Легкий (Стартовая зона)
+                randomZ = UnityEngine.Random.Range(spawnMinZ_Easy, spawnMaxZ_Easy);
+            else if (roll < 0.70f) // 40% Средний (Зона кубов)
+                randomZ = UnityEngine.Random.Range(spawnMinZ_Medium, spawnMaxZ_Medium);
+            else // 30% Тяжелый (Финал за кубами)
+                randomZ = UnityEngine.Random.Range(spawnMinZ_Hard, spawnMaxZ_Hard);
+
+            Vector3 proposedLocalPos = new Vector3(randomX, startBallLocalPosition.y, randomZ);
+            Vector3 proposedWorldPos = targetBall.transform.parent.TransformPoint(proposedLocalPos);
+
+            Collider[] colliders = Physics.OverlapSphere(proposedWorldPos, checkRadius, spawnCheckLayerMask);
+            if (colliders.Length == 0)
+            {
+                finalLocalPos = proposedLocalPos;
+                positionValid = true;
+            }
+        }
+
+        if (!positionValid)
+        {
+            Debug.LogWarning($"[RobotBrain] Не удалось найти безопасное место для мяча за {maxAttempts} попыток. Спавн в дефолте.");
+            finalLocalPos = startBallLocalPosition;
+        }
+
+        targetBall.transform.localPosition = finalLocalPos;
         targetBall.mass = startBallMass * (1.0f + UnityEngine.Random.Range(0.0f, 1.0f));
         targetBall.transform.localScale = startBallScale * (1.0f + UnityEngine.Random.Range(-0.2f, 0.2f));
         targetBall.linearVelocity = Vector3.zero;
@@ -160,12 +238,20 @@ public class RobotBrain : Agent
             rewardConfigLoaded = true;
         }
 
+        RandomizeObstacles();
+
+        if (gripperController != null && gripperController.IsHolding)
+        {
+            gripperController.GripperCloseCommand = false;
+            gripperController.ReleaseBall();
+        }
+
+        ResetBall();
 
         if (Academy.Instance.IsCommunicatorOn)
         {
             if (rb != null)
             {
-                // Рандомизируем массу робота от 1.0кг до 4.0кг (базовый вес 2.5кг)
                 rb.mass = UnityEngine.Random.Range(2.2f, 2.8f);
             }
 
@@ -185,15 +271,6 @@ public class RobotBrain : Agent
         float randomAngle = UnityEngine.Random.Range(-180f, 180f);
         Quaternion randomRotation = Quaternion.Euler(0f, startRotation.eulerAngles.y + randomAngle, 0f);
         transform.SetPositionAndRotation(startPosition, randomRotation);
-
-        if (gripperController != null && gripperController.IsHolding)
-        {
-            gripperController.GripperCloseCommand = false;
-            gripperController.ReleaseBall();
-        }
-
-        ResetBall();
-
         prevGas = 0f;
         prevSteer = 0f;
         lastKnownBallAngle = 0f;
@@ -291,14 +368,6 @@ public class RobotBrain : Agent
             AddReward(penaltyBackward);
         }
 
-        // === SPEED PENALTY NEAR BALL (deathlydh, REWARD #8) ===
-        // Штраф за высокую скорость вблизи мяча — не таранить!
-        if (lastBallVisible && lastBallDist < speedNearBallDistanceThreshold && Mathf.Abs(gas) > speedNearBallGasThreshold)
-        {
-            penaltySpeedNearBall = -speedNearBallPenalty;
-            AddReward(penaltySpeedNearBall);
-        }
-
         AddReward(penaltyTime);
 
         var stats = Academy.Instance.StatsRecorder;
@@ -309,7 +378,6 @@ public class RobotBrain : Agent
         stats.Add("ComponentRewards/5_CollisionPenalty", penaltyCollision);
         stats.Add("ComponentRewards/6_BackwardPenalty", penaltyBackward);
         stats.Add("ComponentRewards/7_TimePenalty", penaltyTime);
-        stats.Add("ComponentRewards/8_SpeedNearBallPenalty", penaltySpeedNearBall);
     }
 
     public override void CollectObservations(VectorSensor sensor)
