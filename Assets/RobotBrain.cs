@@ -326,10 +326,16 @@ public class RobotBrain : Agent
         {
             float currentDistance = Vector3.Distance(transform.position, targetBall.position);
             float delta = prevDistanceToBall - currentDistance;
-            float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
+            
+            bool canSeeBall = yoloCamera != null && yoloCamera.IsBallVisible;
+            bool isCloseBlindZone = currentDistance < 0.6f;
 
-            rewardDist = delta * rewardScale;
-            AddReward(rewardDist);
+            if (canSeeBall || isCloseBlindZone)
+            {
+                float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
+                rewardDist = delta * rewardScale;
+                AddReward(rewardDist);
+            }
 
             prevDistanceToBall = currentDistance;
         }
