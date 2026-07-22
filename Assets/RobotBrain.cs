@@ -323,10 +323,9 @@ public class RobotBrain : Agent
         float currentDistance = Vector3.Distance(transform.position, targetBall.position);
         float delta = prevDistanceToBall - currentDistance;
         
-        bool canSeeBall = yoloCamera != null && yoloCamera.IsBallVisible;
         bool isCloseBlindZone = currentDistance < 0.6f;
 
-        if (canSeeBall || isCloseBlindZone)
+        if (yoloCamera.IsBallVisible; || isCloseBlindZone)
         {
             float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
             rewardDist = delta * rewardScale;
@@ -346,7 +345,7 @@ public class RobotBrain : Agent
         prevZPosition = transform.position.z;
         
 
-        if (yoloCamera.IsBallVisible)
+        if (yoloCamera.IsBallVisible && lastBallDist < 0.5f)
         {
             float chassisAlignment = 1f - (Mathf.Abs(cameraPivotAngle) / cameraPivotMaxAngle);
             rewardCentering = centeringRewardScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle)) * chassisAlignment;
@@ -445,8 +444,7 @@ public class RobotBrain : Agent
 
     public override void OnActionReceived(ActionBuffers actions)
     {
-        if(gripperController == null || virtualSensors == null || trackController == null) return;
-
+        if(gripperController == null || virtualSensors == null || trackController == null || cameraPivot == null) return;
         if (virtualSensors.GripperIRBallDetected > 0.5f)
         {
             gripperController.GripperCloseCommand = true;
@@ -491,10 +489,10 @@ public class RobotBrain : Agent
         trackController.GasInput = gas;
         trackController.SteerInput = steer;
 
+        if(Mathf.Abs(cameraSignal) < 0.1f) cameraSignal = 0f;
         cameraPivotAngle = Mathf.Clamp(cameraPivotAngle + cameraSignal * cameraPivotSpeed * Time.fixedDeltaTime,
             -cameraPivotMaxAngle, cameraPivotMaxAngle);
-        if (cameraPivot != null)
-            cameraPivot.localRotation = Quaternion.Euler(15f, cameraPivotAngle, 0f);
+        cameraPivot.localRotation = Quaternion.Euler(15f, cameraPivotAngle, 0f);
 
         CalculateRewards(gas, steer);
 
