@@ -313,6 +313,7 @@ public class RobotBrain : Agent
         float penaltyBackward = 0f;
         float penaltySpeedNearBall = 0f;
         float penaltyTime = -0.0005f;
+        float rewardSearch = 0f;
 
         if (transform.position.y < fallHeightThreshold)
         {
@@ -338,7 +339,8 @@ public class RobotBrain : Agent
             }
             if (!canSeeBall && !isCloseBlindZone && gas > 0.2f)
             {
-                AddReward(0.0003f);
+                rewardSearch = 0.0003f;
+                AddReward(rewardSearch);
             }
 
             prevDistanceToBall = currentDistance;
