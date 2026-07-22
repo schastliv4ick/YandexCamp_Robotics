@@ -80,6 +80,7 @@ public class RobotBrain : Agent
     private Vector3 startPosition;
     private Quaternion startRotation;
     private float prevDistanceToBall;
+    private float prevZPosition; // для награды за продвижение по мировой оси +Z (полоса препятствий)
     private float prevGas;
     private float prevSteer;
     private float lastKnownBallAngle;
@@ -280,6 +281,8 @@ public class RobotBrain : Agent
         if (targetBall != null)
             prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
 
+        prevZPosition = transform.position.z;
+
         holdTicks = 0;
 
         currentActionLatency = Academy.Instance.IsCommunicatorOn ? UnityEngine.Random.Range(8, 13) : 0;
@@ -337,10 +340,15 @@ public class RobotBrain : Agent
                 rewardDist = delta * rewardScale;
                 AddReward(rewardDist);
             }
-            if (!canSeeBall && !isCloseBlindZone && gas > 0.2f)
+            
+            if (!canSeeBall && !isCloseBlindZone)
             {
-                rewardSearch = 0.0003f;
-                AddReward(rewardSearch);
+                float deltaZ = transform.position.z - prevZPosition;
+                if (deltaZ > 0f) // продвинулся вглубь полосы; движение назад не штрафуем
+                {
+                    rewardSearch = 0.003f;
+                    AddReward(rewardSearch);
+                }
             }
 
             prevDistanceToBall = currentDistance;
@@ -516,6 +524,7 @@ public class RobotBrain : Agent
 
         prevGas = gas;
         prevSteer = steer;
+        prevZPosition = transform.position.z;
 
         if (diagLogger != null && virtualSensors != null && gripperController != null)
         {
