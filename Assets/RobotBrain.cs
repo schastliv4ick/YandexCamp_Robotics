@@ -346,7 +346,7 @@ public class RobotBrain : Agent
                 float deltaZ = transform.position.z - prevZPosition;
                 if (deltaZ > 0f) // продвинулся вглубь полосы; движение назад не штрафуем
                 {
-                    rewardSearch = 0.003f;
+                    rewardSearch = 0.0003f;
                     AddReward(rewardSearch);
                 }
             }
