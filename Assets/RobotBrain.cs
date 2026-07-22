@@ -341,17 +341,18 @@ public class RobotBrain : Agent
                 AddReward(rewardDist);
             }
             
-            if (!canSeeBall && !isCloseBlindZone)
-            {
-                float deltaZ = transform.position.z - prevZPosition;
-                if (deltaZ > 0f) // продвинулся вглубь полосы; движение назад не штрафуем
+        if (!canSeeBall && !isCloseBlindZone)
+        {
+            float deltaZ = transform.position.z - prevZPosition;
+            
+            if (deltaZ > 0f && deltaZ < 0.5f) 
                 {
-                    rewardSearch = 0.0003f;
+                    rewardSearch = deltaZ * 0.5f; 
                     AddReward(rewardSearch);
                 }
             }
 
-            prevDistanceToBall = currentDistance;
+            prevZPosition = transform.position.z;
         }
 
         if (yoloCamera != null && yoloCamera.IsBallVisible)
