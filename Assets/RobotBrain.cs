@@ -193,14 +193,14 @@ public class RobotBrain : Agent
             float randomX = UnityEngine.Random.Range(spawnMinX, spawnMaxX);
             
             // Распределяем спавн мяча по трем Z-зонам (Curriculum)
-            float roll = UnityEngine.Random.value;
+            // float roll = UnityEngine.Random.value;
             float randomZ = startBallLocalPosition.z;
-            if (roll < 0.15f) // 30% Легкий (Стартовая зона)
-                randomZ = UnityEngine.Random.Range(spawnMinZ_Easy, spawnMaxZ_Easy);
-            else if (roll < 0.75f) // 40% Средний (Зона кубов)
-                randomZ = UnityEngine.Random.Range(spawnMinZ_Medium, spawnMaxZ_Medium);
-            else // 30% Тяжелый (Финал за кубами)
-                randomZ = UnityEngine.Random.Range(spawnMinZ_Hard, spawnMaxZ_Hard);
+            // if (roll < 0.15f) // 30% Легкий (Стартовая зона)
+            //     randomZ = UnityEngine.Random.Range(spawnMinZ_Easy, spawnMaxZ_Easy);
+            // else if (roll < 0.75f) // 40% Средний (Зона кубов)
+            //     randomZ = UnityEngine.Random.Range(spawnMinZ_Medium, spawnMaxZ_Medium);
+            // else // 30% Тяжелый (Финал за кубами)
+            randomZ = UnityEngine.Random.Range(spawnMinZ_Hard, spawnMaxZ_Hard);
 
             Vector3 proposedLocalPos = new Vector3(randomX, startBallLocalPosition.y, randomZ);
             Vector3 proposedWorldPos = targetBall.transform.parent.TransformPoint(proposedLocalPos);
@@ -269,7 +269,7 @@ public class RobotBrain : Agent
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
 
-        float randomAngle = UnityEngine.Random.Range(-180f, 180f);
+        float randomAngle = UnityEngine.Random.Range(-15, 15f);
         Quaternion randomRotation = Quaternion.Euler(0f, startRotation.eulerAngles.y + randomAngle, 0f);
         transform.SetPositionAndRotation(startPosition, randomRotation);
         prevGas = 0f;
@@ -308,6 +308,8 @@ public class RobotBrain : Agent
     private void CalculateRewards(float gas, float steer)
     {
         // Локальные переменные для фиксации значений на этом шаге
+         if (targetBall == null || yoloCamera == null || virtualSensors == null) return;
+         
         float rewardDist = 0f;
         float rewardCentering = 0f;
         float penaltyAction = 0f;
@@ -318,44 +320,33 @@ public class RobotBrain : Agent
         float penaltyTime = -0.0005f;
         float rewardSearch = 0f;
 
-        if (transform.position.y < fallHeightThreshold)
+        float currentDistance = Vector3.Distance(transform.position, targetBall.position);
+        float delta = prevDistanceToBall - currentDistance;
+        
+        bool canSeeBall = yoloCamera != null && yoloCamera.IsBallVisible;
+        bool isCloseBlindZone = currentDistance < 0.6f;
+
+        if (canSeeBall || isCloseBlindZone)
         {
-            AddReward(-fallPenalty);
-            LogEpisodeOutcome("fall");
-            EndEpisode();
-            return;
+            float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
+            rewardDist = delta * rewardScale;
+            AddReward(rewardDist);
         }
-
-        if (targetBall != null)
-        {
-            float currentDistance = Vector3.Distance(transform.position, targetBall.position);
-            float delta = prevDistanceToBall - currentDistance;
-            
-            bool canSeeBall = yoloCamera != null && yoloCamera.IsBallVisible;
-            bool isCloseBlindZone = currentDistance < 0.6f;
-
-            if (canSeeBall || isCloseBlindZone)
-            {
-                float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
-                rewardDist = delta * rewardScale;
-                AddReward(rewardDist);
-            }
-            
-        if (!canSeeBall && !isCloseBlindZone)
+        else
         {
             float deltaZ = transform.position.z - prevZPosition;
             
             if (deltaZ > 0f && deltaZ < 0.5f) 
-                {
-                    rewardSearch = deltaZ * 0.5f; 
-                    AddReward(rewardSearch);
-                }
+            {
+                rewardSearch = deltaZ * 0.5f; 
+                AddReward(rewardSearch);
             }
-
-            prevZPosition = transform.position.z;
         }
 
-        if (yoloCamera != null && yoloCamera.IsBallVisible)
+        prevZPosition = transform.position.z;
+        
+
+        if (yoloCamera.IsBallVisible)
         {
             float chassisAlignment = 1f - (Mathf.Abs(cameraPivotAngle) / cameraPivotMaxAngle);
             rewardCentering = centeringRewardScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle)) * chassisAlignment;
@@ -366,18 +357,16 @@ public class RobotBrain : Agent
         penaltyAction = -actionRatePenalty * actionMagnitude;
         AddReward(penaltyAction);
 
-        if (virtualSensors != null)
+        float us = virtualSensors.USNormalizedDistance; // 0 = вплотную, 1 = чисто
+        if (us < obstacleSafeDistance)
         {
-            float us = virtualSensors.USNormalizedDistance; // 0 = вплотную, 1 = чисто
-            if (us < obstacleSafeDistance)
-            {
-                float danger = (obstacleSafeDistance - us) / obstacleSafeDistance;
-                penaltyObstacle = -obstaclePenaltyScale * danger;
-                AddReward(penaltyObstacle);
-            }
+            float danger = (obstacleSafeDistance - us) / obstacleSafeDistance;
+            penaltyObstacle = -obstaclePenaltyScale * danger;
+            AddReward(penaltyObstacle);
         }
+        
 
-        if (virtualSensors != null && (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f))
+        if (virtualSensors.LeftIRObstacle > 0.5f || virtualSensors.RightIRObstacle > 0.5f)
         {
             penaltyCollision = -irCollisionPenalty;
             AddReward(penaltyCollision);
@@ -456,24 +445,23 @@ public class RobotBrain : Agent
 
     public override void OnActionReceived(ActionBuffers actions)
     {
-        if (gripperController != null && gripperController.IsHolding)
+        if(gripperController == null || virtualSensors == null || trackController == null) return;
+
+        if (virtualSensors.GripperIRBallDetected > 0.5f)
         {
-            if(trackController != null)
-            {
-                trackController.GasInput = 0;
-                trackController.SteerInput = 0;
-            }
-            holdTicks++;
-            AddReward(holdingBallReward);
-            if (holdTicks >= 20)
-            {
-                AddReward(successReward);
-                LogEpisodeOutcome("success");
-                EndEpisode();
-            }
+            gripperController.GripperCloseCommand = true;
+        }
+        
+
+        if (gripperController.IsHolding)
+        {
+            trackController.GasInput = 0;
+            trackController.SteerInput = 0;
+            AddReward(successReward);
+            LogEpisodeOutcome("success");
+            EndEpisode();
             return;
         }
-        else holdTicks = 0;
 
         float gas, steer, cameraSignal;
 
@@ -500,26 +488,13 @@ public class RobotBrain : Agent
             steer = Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
             cameraSignal = Mathf.Clamp(actions.ContinuousActions[2], -1f, 1f);
         }
-
-        if (trackController != null)
-        {
-            trackController.GasInput = gas;
-            trackController.SteerInput = steer;
-        }
+        trackController.GasInput = gas;
+        trackController.SteerInput = steer;
 
         cameraPivotAngle = Mathf.Clamp(cameraPivotAngle + cameraSignal * cameraPivotSpeed * Time.fixedDeltaTime,
             -cameraPivotMaxAngle, cameraPivotMaxAngle);
         if (cameraPivot != null)
             cameraPivot.localRotation = Quaternion.Euler(15f, cameraPivotAngle, 0f);
-
-        // захват автоматический, не требуется ответ модели
-        if (gripperController != null && virtualSensors != null)
-        {
-            if (virtualSensors.GripperIRBallDetected > 0.5f)
-            {
-                gripperController.GripperCloseCommand = true;
-            }
-        }
 
         CalculateRewards(gas, steer);
 
@@ -527,7 +502,7 @@ public class RobotBrain : Agent
         prevSteer = steer;
         prevZPosition = transform.position.z;
 
-        if (diagLogger != null && virtualSensors != null && gripperController != null)
+        if (diagLogger != null)
         {
             bool isRetryingHeuristic = gas < backwardGasThreshold
                 && lastBallDist < nearDistanceThreshold
