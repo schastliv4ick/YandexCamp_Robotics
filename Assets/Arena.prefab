@@ -853,7 +853,7 @@ Transform:
   m_GameObject: {fileID: 1917803207712587572}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.15, y: -0.08596, z: 0.25}
+  m_LocalPosition: {x: 1.78, y: -0.08596, z: 0.24}
   m_LocalScale: {x: 0.66345, y: 0.3, z: 0.3}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1267,7 +1267,7 @@ MonoBehaviour:
   successReward: 5
   fallPenalty: -1
   holdingBallReward: 0.2
-  spawnMinX: -1
+  spawnMinX: 0
   spawnMaxX: 2.5
   spawnMinZ_Easy: -0.25
   spawnMaxZ_Easy: 0.1
@@ -1685,7 +1685,7 @@ Transform:
   m_GameObject: {fileID: 3671411061729707088}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.76, y: 0, z: 3}
+  m_LocalPosition: {x: 0.65, y: 0, z: 2.45}
   m_LocalScale: {x: 0.049999997, y: 0.049999997, z: 0.049999997}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -1824,7 +1824,7 @@ Transform:
   m_GameObject: {fileID: 4037564937125871278}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 2.17, y: -0.08596, z: 1.86}
+  m_LocalPosition: {x: 2.56, y: -0.08596, z: 1.8}
   m_LocalScale: {x: 0.66681004, y: 0.3, z: 0.3}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2469,7 +2469,7 @@ Transform:
   m_GameObject: {fileID: 6643237175279476835}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.45, y: -0.08596, z: 1.52}
+  m_LocalPosition: {x: 0.26, y: -0.08596, z: 1.71}
   m_LocalScale: {x: 0.66345, y: 0.3, z: 0.3}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3007,7 +3007,7 @@ Transform:
   m_GameObject: {fileID: 9158067886246595910}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.57, y: -0.08596, z: 1.76}
+  m_LocalPosition: {x: -0.89, y: -0.08596, z: 1.95}
   m_LocalScale: {x: 0.66681004, y: 0.3, z: 0.3}
   m_ConstrainProportionsScale: 0
   m_Children: []
