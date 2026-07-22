@@ -194,9 +194,9 @@ public class RobotBrain : Agent
             // Распределяем спавн мяча по трем Z-зонам (Curriculum)
             float roll = UnityEngine.Random.value;
             float randomZ = startBallLocalPosition.z;
-            if (roll < 0.60f) // 30% Легкий (Стартовая зона)
+            if (roll < 0.15f) // 30% Легкий (Стартовая зона)
                 randomZ = UnityEngine.Random.Range(spawnMinZ_Easy, spawnMaxZ_Easy);
-            else if (roll < 0.85f) // 40% Средний (Зона кубов)
+            else if (roll < 0.75f) // 40% Средний (Зона кубов)
                 randomZ = UnityEngine.Random.Range(spawnMinZ_Medium, spawnMaxZ_Medium);
             else // 30% Тяжелый (Финал за кубами)
                 randomZ = UnityEngine.Random.Range(spawnMinZ_Hard, spawnMaxZ_Hard);
@@ -336,6 +336,10 @@ public class RobotBrain : Agent
                 rewardDist = delta * rewardScale;
                 AddReward(rewardDist);
             }
+            if (!canSeeBall && !isCloseBlindZone && gas > 0.2f)
+            {
+                AddReward(0.0003f);
+            }
 
             prevDistanceToBall = currentDistance;
         }
@@ -384,6 +388,7 @@ public class RobotBrain : Agent
         stats.Add("ComponentRewards/5_CollisionPenalty", penaltyCollision);
         stats.Add("ComponentRewards/6_BackwardPenalty", penaltyBackward);
         stats.Add("ComponentRewards/7_TimePenalty", penaltyTime);
+        stats.Add("ComponentRewards/8_SearchBonus", rewardSearch);
     }
 
     public override void CollectObservations(VectorSensor sensor)
