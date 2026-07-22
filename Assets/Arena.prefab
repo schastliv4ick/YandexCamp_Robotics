@@ -1397,6 +1397,10 @@ MonoBehaviour:
   - {fileID: 5975729531120417630}
   - {fileID: 6237572611183234626}
   - {fileID: 2331322056814921538}
+  - {fileID: 1808365377015820750}
+  - {fileID: 812579243132879834}
+  - {fileID: 8535434055629854962}
+  - {fileID: 4258478052050481710}
   obstacleOffsetRange: 0.3
 --- !u!114 &4479401334779454422
 MonoBehaviour:
@@ -1412,7 +1416,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SimulatedYoloCamera
   targetCamera: {fileID: 2640040679113194705}
   targetBall: {fileID: 2321187816488341999}
-  maxViewDistance: 2
+  maxViewDistance: 0.6
   hFov: 40
   obstacleLayerMask:
     serializedVersion: 2
