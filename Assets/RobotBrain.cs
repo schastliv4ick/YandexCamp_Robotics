@@ -325,7 +325,7 @@ public class RobotBrain : Agent
         
         bool isCloseBlindZone = currentDistance < 0.6f;
 
-        if (yoloCamera.IsBallVisible; || isCloseBlindZone)
+        if (yoloCamera.IsBallVisible || isCloseBlindZone)
         {
             float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
             rewardDist = delta * rewardScale;
