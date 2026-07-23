@@ -1177,7 +1177,7 @@ Transform:
   m_GameObject: {fileID: 2378955254097731838}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.297, y: -0.14313, z: -0.462}
+  m_LocalPosition: {x: -0.055, y: -0.14313, z: 2.395}
   m_LocalScale: {x: 0.0862069, y: 0.0862069, z: 0.0862069}
   m_ConstrainProportionsScale: 1
   m_Children:
@@ -1381,13 +1381,8 @@ MonoBehaviour:
   backwardGasThreshold: -0.1
   successReward: 5
   fallPenalty: 1
-  holdingBallReward: 0.2
   spawnMinX: -0.5
   spawnMaxX: 1.5
-  spawnMinZ_Easy: 0
-  spawnMaxZ_Easy: 0.5
-  spawnMinZ_Medium: 0.7
-  spawnMaxZ_Medium: 2
   spawnMinZ_Hard: 2.5
   spawnMaxZ_Hard: 3.8
   spawnCheckLayerMask:
@@ -1401,6 +1396,7 @@ MonoBehaviour:
   - {fileID: 6237572611183234626}
   - {fileID: 2331322056814921538}
   obstacleOffsetRange: 0.3
+  robotClearanceRadius: 0.35
 --- !u!114 &4479401334779454422
 MonoBehaviour:
   m_ObjectHideFlags: 0
