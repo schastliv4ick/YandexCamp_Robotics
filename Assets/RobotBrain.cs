@@ -193,14 +193,14 @@ public class RobotBrain : Agent
             float randomX = UnityEngine.Random.Range(spawnMinX, spawnMaxX);
             
             // Распределяем спавн мяча по трем Z-зонам (Curriculum)
-            // float roll = UnityEngine.Random.value;
+            float roll = UnityEngine.Random.value;
             float randomZ = startBallLocalPosition.z;
             // if (roll < 0.15f) // 30% Легкий (Стартовая зона)
-            //     randomZ = UnityEngine.Random.Range(spawnMinZ_Easy, spawnMaxZ_Easy);
-            // else if (roll < 0.75f) // 40% Средний (Зона кубов)
-            //     randomZ = UnityEngine.Random.Range(spawnMinZ_Medium, spawnMaxZ_Medium);
-            // else // 30% Тяжелый (Финал за кубами)
-            randomZ = UnityEngine.Random.Range(spawnMinZ_Hard, spawnMaxZ_Hard);
+                // randomZ = UnityEngine.Random.Range(spawnMinZ_Easy, spawnMaxZ_Easy);
+            if (roll < 0.2f) // 40% Средний (Зона кубов)
+                randomZ = UnityEngine.Random.Range(spawnMinZ_Medium, spawnMaxZ_Medium);
+            else // 30% Тяжелый (Финал за кубами)
+                randomZ = UnityEngine.Random.Range(spawnMinZ_Hard, spawnMaxZ_Hard);
 
             Vector3 proposedLocalPos = new Vector3(randomX, startBallLocalPosition.y, randomZ);
             Vector3 proposedWorldPos = targetBall.transform.parent.TransformPoint(proposedLocalPos);
