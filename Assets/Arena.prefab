@@ -25,11 +25,11 @@ Transform:
   m_GameObject: {fileID: 26945455292703728}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.3610003, y: 1.7259998, z: 0.50200033}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 0.006120681, y: -0.05637935, z: 0.043275896}
+  m_LocalScale: {x: 0.086206906, y: 0.086206906, z: 0.086206906}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 897449674108940850}
+  m_Father: {fileID: 6536664849807711173}
   m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
 --- !u!1 &170785257655232471
 GameObject:
@@ -370,6 +370,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4100486042143929022}
+  - {fileID: 7295896976998189917}
   m_Father: {fileID: 897449674108940850}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &927134140617517533
@@ -1181,7 +1182,6 @@ Transform:
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 6942010459621431412}
-  - {fileID: 7295896976998189917}
   - {fileID: 5060747335509397850}
   - {fileID: 3306149574800333154}
   - {fileID: 3335226900205065427}
@@ -1358,7 +1358,7 @@ MonoBehaviour:
   agentParameters:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
-  MaxStep: 2000
+  MaxStep: 4000
   trackController: {fileID: 1677057379135965520}
   gripperController: {fileID: 343155045744222010}
   virtualSensors: {fileID: 8740193334231164096}
@@ -1387,8 +1387,8 @@ MonoBehaviour:
   spawnMaxZ_Easy: 0.5
   spawnMinZ_Medium: 0.7
   spawnMaxZ_Medium: 2
-  spawnMinZ_Hard: 2.34
-  spawnMaxZ_Hard: 3.87
+  spawnMinZ_Hard: 2.5
+  spawnMaxZ_Hard: 3.8
   spawnCheckLayerMask:
     serializedVersion: 2
     m_Bits: 192
@@ -1438,7 +1438,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DiagnosticLogger
   enableLogging: 1
   logEveryN: 1
-  maxRows: 2000
+  maxRows: 4000
   enableEpisodeMetrics: 1
   writeEpisodeCsvLocally: 0
 --- !u!20 &2809496480042006279
@@ -2014,7 +2014,7 @@ Transform:
   m_GameObject: {fileID: 3671411061729707088}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.3, y: 0, z: 3.12}
+  m_LocalPosition: {x: 0.237, y: 0, z: 3.121}
   m_LocalScale: {x: 0.049999997, y: 0.049999997, z: 0.049999997}
   m_ConstrainProportionsScale: 1
   m_Children: []
