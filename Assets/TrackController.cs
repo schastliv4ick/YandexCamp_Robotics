@@ -31,6 +31,17 @@ public class TrackController : MonoBehaviour
     [Tooltip("Максимальный шаг PWM за тик 20мс (15 - реальный робот)")]
     public float maxPwmStep = 15f;
 
+    [Header("Трение гусениц о пол")]
+    [Tooltip("Настраивать физический материал коллайдера (трение гусениц). " +
+             "linearDamping/angularDamping — это сопротивление среды, а НЕ трение о поверхность!")]
+    public bool applyTrackFriction = true;
+    [Tooltip("Статическое трение (сцепление при старте с места). Резиновые гусеницы ~0.9")]
+    public float trackStaticFriction = 0.9f;
+    [Tooltip("Динамическое трение (при движении). Обычно чуть ниже статического.")]
+    public float trackDynamicFriction = 0.7f;
+    [Tooltip("Упругость (отскок). Для гусениц практически нулевая.")]
+    public float trackBounciness = 0.0f;
+
     private Rigidbody rb;
     private float targetLinear = 0f;
     private float targetAngular = 0f;
@@ -51,6 +62,41 @@ public class TrackController : MonoBehaviour
         rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
         rb.linearDamping = 8f;
         rb.angularDamping = 10f;
+
+        SetupTrackFriction();
+    }
+
+    /// <summary>
+    /// Трение гусениц о пол. linearDamping/angularDamping гасят движение "как в воздухе"
+    /// и НЕ моделируют сцепление с поверхностью — для этого нужен PhysicsMaterial на коллайдере.
+    /// Без него робот проскальзывает при разгоне и заносит на поворотах не так, как реальный.
+    /// </summary>
+    private void SetupTrackFriction()
+    {
+        if (!applyTrackFriction) return;
+
+        Collider col = GetComponent<Collider>();
+        if (col == null) col = GetComponentInChildren<Collider>();
+        if (col == null)
+        {
+            Debug.LogWarning("[TrackController] Коллайдер не найден — трение гусениц не настроено.");
+            return;
+        }
+
+#if UNITY_6000_0_OR_NEWER
+        var mat = new PhysicsMaterial("TrackFriction");
+        mat.frictionCombine = PhysicsMaterialCombine.Average;
+        mat.bounceCombine = PhysicsMaterialCombine.Minimum;
+#else
+        var mat = new PhysicMaterial("TrackFriction");
+        mat.frictionCombine = PhysicMaterialCombine.Average;
+        mat.bounceCombine = PhysicMaterialCombine.Minimum;
+#endif
+        mat.staticFriction = trackStaticFriction;
+        mat.dynamicFriction = trackDynamicFriction;
+        mat.bounciness = trackBounciness;
+
+        col.material = mat;
     }
 
     /// <summary>

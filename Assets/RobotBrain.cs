@@ -8,7 +8,8 @@ using System.Collections.Generic;
 /// Архитектура Артёма (deathlydh), портированная на наши компоненты.
 ///
 /// Скопировано целиком:
-///  - 15 наблюдений в его порядке (4 сенсора + 5 зрение + 1 клешня + 2 смещение + heading + speed + timeSinceSeen)
+///  - 13 наблюдений (4 сенсора + 5 зрение + 1 клешня + heading + speed + timeSinceSeen)
+///    ОТЛИЧИЕ от Артёма: убрана одометрия displacementX/Z (у реального робота её нет)
 ///  - Фиксированные награды-константы (НЕ континуальные коэффициенты)
 ///  - Клешня автономна (НЕ действие сети): ИК + окно "мяч был виден недавно" + анти-дребезг
 ///  - Задержка действий (8..13) + задержка сенсоров (2 шага)
@@ -21,7 +22,7 @@ using System.Collections.Generic;
 ///  - DR из config: ball_max_distance, ball_scale, ball_mass, vision_noise, vision_dropout, episode_length
 ///
 /// ВАЖНО для Inspector:
-///  - Space Size = 15, Stacked Vectors = 4
+///  - Space Size = 13, Stacked Vectors = 4
 ///  - Continuous Actions = 3, Discrete Branches = 0 (клешня больше НЕ действие сети!)
 /// </summary>
 [RequireComponent(typeof(TrackController))]
@@ -47,7 +48,13 @@ public class RobotBrain : Agent
     public int sensorLatency = 2;
 
     [Header("Camera servo")]
-    [SerializeField] private float cameraPivotMaxAngle = 90f;
+    [Tooltip("Реальный угол поворота камеры: +-45 градусов.")]
+    [SerializeField] private float cameraPivotMaxAngle = 45f;
+
+    [Header("Пороги штрафов по датчикам")]
+    [Tooltip("Нормализованный порог УЗ, ниже которого начинается штраф за приближение к стене. " +
+             "При дальности УЗ 5 м: 0.04 = 20 см, 0.03 = 15 см, 0.06 = 30 см.")]
+    [SerializeField] private float sonarPenaltyThreshold = 0.04f;
 
     private TrackController track;
     private VirtualSensors sensors;
@@ -94,7 +101,11 @@ public class RobotBrain : Agent
 
     // --- Камера/серво ---
     private float currentCameraYaw = 0f;
-    private const float MAX_CAMERA_STEP_NORMALIZED = 15f / 90f; // 15 градусов из 90
+    [Tooltip("Максимальный шаг поворота камеры за тик, градусов (реальное серво ~15).")]
+    [SerializeField] private float maxCameraStepDegrees = 15f;
+    // Нормализованный шаг считается от реального диапазона серво (+-45), а не от захардкоженных 90.
+    private float MaxCameraStepNormalized =>
+        cameraPivotMaxAngle > 0.0001f ? maxCameraStepDegrees / cameraPivotMaxAngle : 1f;
 
     // --- Зрение: память ---
     private float lastKnownBallDirection = 0f;
@@ -274,14 +285,14 @@ public class RobotBrain : Agent
         // --- 10: клешня ---
         sensor.AddObservation(gripperController != null && gripperController.IsHolding ? 1f : 0f);
 
-
-        // --- 13: курс ---
+        // --- 11: курс ---
+        // (одометрия displacementX/Z убрана: на реальном роботе таких датчиков нет)
         sensor.AddObservation(transform.eulerAngles.y / 360f);
 
-        // --- 14: скорость ---
+        // --- 12: скорость ---
         sensor.AddObservation(rb != null ? Mathf.Clamp01(rb.linearVelocity.magnitude / 0.5f) : 0f);
 
-        // --- 15: время с последней детекции ---
+        // --- 13: время с последней детекции ---
         sensor.AddObservation(Mathf.Clamp01((Time.time - lastDetectionTime) / 5f));
     }
 
@@ -371,8 +382,8 @@ public class RobotBrain : Agent
         // === CAMERA STEP LIMIT: реальное серво макс 15 градусов/тик ===
         float targetCamYaw = Mathf.Clamp(cameraYawInput, -1f, 1f);
         float camDelta = targetCamYaw - currentCameraYaw;
-        if (Mathf.Abs(camDelta) > MAX_CAMERA_STEP_NORMALIZED)
-            targetCamYaw = currentCameraYaw + Mathf.Sign(camDelta) * MAX_CAMERA_STEP_NORMALIZED;
+        if (Mathf.Abs(camDelta) > MaxCameraStepNormalized)
+            targetCamYaw = currentCameraYaw + Mathf.Sign(camDelta) * MaxCameraStepNormalized;
         lastCamDelta = Mathf.Abs(targetCamYaw - currentCameraYaw);
         currentCameraYaw = targetCamYaw;
         if (cameraPivot != null)
@@ -411,9 +422,10 @@ public class RobotBrain : Agent
         // === REWARD #4: SENSOR PROXIMITY (штраф по датчикам, не по коллизиям) ===
         if (IsTraining && sensors != null)
         {
-            if (sensors.USNormalizedDistance < 0.12f)
+            // При дальности УЗ 5 м порог 0.04 = штраф начинается за 20 см до стены.
+            if (sensors.USNormalizedDistance < sonarPenaltyThreshold)
             {
-                float sonarProx = 1f - (sensors.USNormalizedDistance / 0.12f);
+                float sonarProx = 1f - (sensors.USNormalizedDistance / sonarPenaltyThreshold);
                 AddReward(-0.03f * sonarProx);
             }
             if (sensors.LeftIRObstacle > 0.5f || sensors.RightIRObstacle > 0.5f)
@@ -433,7 +445,7 @@ public class RobotBrain : Agent
             // === REWARD #6: MILD REVERSE PENALTY (с исключениями) ===
             if (gas < -0.1f && !isRetrying)
             {
-                bool nearWall = sensors != null && sensors.USNormalizedDistance < 0.12f;
+                bool nearWall = sensors != null && sensors.USNormalizedDistance < sonarPenaltyThreshold;
                 bool nearSideWall = sensors != null
                     && (sensors.LeftIRObstacle > 0.5f || sensors.RightIRObstacle > 0.5f);
                 if (!nearWall && !nearSideWall) AddReward(-0.005f);
@@ -655,7 +667,8 @@ public class RobotBrain : Agent
         targetBall.mass = envParams.GetWithDefault("ball_mass", 0.1f)
             * UnityEngine.Random.Range(0.5f, 2.0f);
 
-        float ballScale = envParams.GetWithDefault("ball_scale", 0.12f)
+        // Реальный мяч 5 см. Дефолт 0.05 (config задаёт 0.04..0.07 = 4..7 см).
+        float ballScale = envParams.GetWithDefault("ball_scale", 0.05f)
             * UnityEngine.Random.Range(0.8f, 1.2f);
         targetBall.transform.localScale = Vector3.one * ballScale;
 
