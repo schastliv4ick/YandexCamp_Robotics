@@ -657,8 +657,8 @@ GameObject:
   - component: {fileID: 3815050123478783688}
   - component: {fileID: 297664555183928963}
   m_Layer: 7
-  m_Name: Cube (12)
-  m_TagString: Untagged
+  m_Name: WallRight
+  m_TagString: Wall
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -672,8 +672,8 @@ Transform:
   m_GameObject: {fileID: 1643654628776077023}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 2.98, y: -0.08596, z: 0.58}
-  m_LocalScale: {x: 76.81651, y: 0.3, z: 0.3}
+  m_LocalPosition: {x: 3.39, y: -0.08596, z: 0.67}
+  m_LocalScale: {x: 7, y: 0.3, z: 0.3}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8657947826623517013}
@@ -950,8 +950,8 @@ GameObject:
   - component: {fileID: 3830787082791924719}
   - component: {fileID: 6063077305952169622}
   m_Layer: 7
-  m_Name: Cube (4)
-  m_TagString: Untagged
+  m_Name: Obstacle5
+  m_TagString: Obstacle
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1271,16 +1271,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TrackController
   moveSpeed: 0.57
   turnSpeed: 120
-  turnK: 0.35
+  smoothing: 0.05
+  turnK: 0.3
   maxLinearCmd: 0.25
   motorDeadzone: 10
   minMotorPwm: 35
   maxPwmStep: 15
-  pwmScale: 200
-  acceleration: 4
-  deceleration: 6
-  turnAcceleration: 4
-  turnDeceleration: 6
+  pwmLeft: 0
+  pwmRight: 0
 --- !u!114 &2085775781574909075
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1312,12 +1310,12 @@ MonoBehaviour:
     NumStackedVectorObservations: 4
     m_ActionSpec:
       m_NumContinuousActions: 3
-      BranchSizes: 03000000
-    VectorActionSize: 
+      BranchSizes: 
+    VectorActionSize: 03000000
     VectorActionDescriptions: []
-    VectorActionSpaceType: 0
+    VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: 061924b756ea02147baa69713e327f2f, type: 3}
+  m_Model: {fileID: 0}
   m_InferenceDevice: 0
   m_BehaviorType: 0
   m_BehaviorName: GFSX_Brain
@@ -1363,45 +1361,10 @@ MonoBehaviour:
   yoloCamera: {fileID: 4479401334779454422}
   cameraPivot: {fileID: 6536664849807711173}
   targetBall: {fileID: 1148007984975919098}
-  fallHeightThreshold: -1
+  minActionLatency: 8
+  maxActionLatency: 13
+  sensorLatency: 2
   cameraPivotMaxAngle: 45
-  cameraPivotSpeed: 60
-  distanceRewardFar: 0.05
-  distanceRewardNear: 0.15
-  nearDistanceThreshold: 0.5
-  centeringRewardScale: 0.02
-  actionRatePenalty: 0.01
-  obstaclePenaltyScale: 0.05
-  obstacleSafeDistance: 0.3
-  irCollisionPenalty: 0.02
-  backwardPenalty: 0.01
-  backwardGasThreshold: -0.1
-  successReward: 5
-  fallPenalty: -1
-  holdingBallReward: 0.2
-  spawnMinX: 0
-  spawnMaxX: 2.5
-  spawnMinZ_Easy: -0.25
-  spawnMaxZ_Easy: 0.1
-  spawnMinZ_Medium: 0.1
-  spawnMaxZ_Medium: 2.16
-  spawnMinZ_Hard: 2.16
-  spawnMaxZ_Hard: 3
-  spawnCheckLayerMask:
-    serializedVersion: 2
-    m_Bits: 192
-  ballClearanceRadius: 0.15
-  obstacles:
-  - {fileID: 4295444466288359829}
-  - {fileID: 3292859895171388888}
-  - {fileID: 5975729531120417630}
-  - {fileID: 6237572611183234626}
-  - {fileID: 2331322056814921538}
-  - {fileID: 1808365377015820750}
-  - {fileID: 812579243132879834}
-  - {fileID: 8535434055629854962}
-  - {fileID: 4258478052050481710}
-  obstacleOffsetRange: 0.3
 --- !u!114 &4479401334779454422
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1434,7 +1397,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d07d03dfb79bb114f971f919ccb3ab30, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DiagnosticLogger
-  enableLogging: 1
+  enableLogging: 0
   logEveryN: 1
   maxRows: 2000
   enableEpisodeMetrics: 1
@@ -1452,8 +1415,8 @@ GameObject:
   - component: {fileID: 2472763261801361034}
   - component: {fileID: 7851180082652350430}
   m_Layer: 7
-  m_Name: Cube (7)
-  m_TagString: Untagged
+  m_Name: Obstacle3
+  m_TagString: Obstacle
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1789,8 +1752,8 @@ GameObject:
   - component: {fileID: 6255245550290175258}
   - component: {fileID: 5140843545193609460}
   m_Layer: 7
-  m_Name: Cube (14)
-  m_TagString: Untagged
+  m_Name: WallDown
+  m_TagString: Wall
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1804,8 +1767,8 @@ Transform:
   m_GameObject: {fileID: 3382791786744876284}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.31, y: -0.08596, z: -2.29}
-  m_LocalScale: {x: 76.81651, y: 0.3, z: 0.3}
+  m_LocalPosition: {x: 0.92, y: -0.08596, z: -2.66}
+  m_LocalScale: {x: 5, y: 0.3, z: 0.3}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8657947826623517013}
@@ -2041,8 +2004,8 @@ GameObject:
   - component: {fileID: 5300404624575996882}
   - component: {fileID: 5902256086868892221}
   m_Layer: 7
-  m_Name: Cube (11)
-  m_TagString: Untagged
+  m_Name: WallLeft
+  m_TagString: Wall
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -2056,8 +2019,8 @@ Transform:
   m_GameObject: {fileID: 3818262069026387978}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: -1.46, y: -0.08596, z: 1.06}
-  m_LocalScale: {x: 76.81651, y: 0.3, z: 0.3}
+  m_LocalPosition: {x: -1.69, y: -0.08596, z: 0.64}
+  m_LocalScale: {x: 7, y: 0.3, z: 0.3}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8657947826623517013}
@@ -2153,8 +2116,8 @@ GameObject:
   - component: {fileID: 3765204408274478632}
   - component: {fileID: 2690569733435390593}
   m_Layer: 7
-  m_Name: Cube (10)
-  m_TagString: Untagged
+  m_Name: Obstacle1
+  m_TagString: Obstacle
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -2798,8 +2761,8 @@ GameObject:
   - component: {fileID: 6592652659370192072}
   - component: {fileID: 5176412332740569546}
   m_Layer: 7
-  m_Name: Cube (8)
-  m_TagString: Untagged
+  m_Name: Obstacle4
+  m_TagString: Obstacle
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -3238,9 +3201,9 @@ Transform:
   m_GameObject: {fileID: 8310303093388886107}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.21891975, y: -0.14313, z: 0.16987002}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 1
+  m_LocalPosition: {x: 0.84, y: -0.14313, z: 0.65}
+  m_LocalScale: {x: 0.5, y: 9, z: 0.7}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8657947826623517013}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -3336,8 +3299,8 @@ GameObject:
   - component: {fileID: 8731966850973313801}
   - component: {fileID: 9222448259398333670}
   m_Layer: 7
-  m_Name: Cube (13)
-  m_TagString: Untagged
+  m_Name: WallUp
+  m_TagString: Wall
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -3351,8 +3314,8 @@ Transform:
   m_GameObject: {fileID: 8903720755954229794}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.27, y: -0.08596, z: 4.12}
-  m_LocalScale: {x: 76.81651, y: 0.3, z: 0.3}
+  m_LocalPosition: {x: 0.86, y: -0.08596, z: 3.99}
+  m_LocalScale: {x: 5, y: 0.3, z: 0.3}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8657947826623517013}
@@ -3448,8 +3411,8 @@ GameObject:
   - component: {fileID: 5091638114208144682}
   - component: {fileID: 3485514545115682582}
   m_Layer: 7
-  m_Name: Cube (9)
-  m_TagString: Untagged
+  m_Name: Obstacle2
+  m_TagString: Obstacle
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
