@@ -25,11 +25,11 @@ Transform:
   m_GameObject: {fileID: 26945455292703728}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.3610003, y: 1.7259998, z: 0.50200033}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 0.0061207116, y: -0.05637935, z: 0.043275896}
+  m_LocalScale: {x: 0.086206906, y: 0.086206906, z: 0.086206906}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 897449674108940850}
+  m_Father: {fileID: 6536664849807711173}
   m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
 --- !u!1 &170785257655232471
 GameObject:
@@ -370,6 +370,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4100486042143929022}
+  - {fileID: 7295896976998189917}
   m_Father: {fileID: 897449674108940850}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &927134140617517533
@@ -1158,6 +1159,7 @@ GameObject:
   - component: {fileID: 5633701245493237200}
   - component: {fileID: 4479401334779454422}
   - component: {fileID: 5747478151184590571}
+  - component: {fileID: 2809496480042006279}
   m_Layer: 0
   m_Name: Robot
   m_TagString: Untagged
@@ -1179,7 +1181,6 @@ Transform:
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 6942010459621431412}
-  - {fileID: 7295896976998189917}
   - {fileID: 5060747335509397850}
   - {fileID: 3306149574800333154}
   - {fileID: 3335226900205065427}
@@ -1203,17 +1204,13 @@ MonoBehaviour:
   leftIRPoint: {fileID: 5060747335509397850}
   rightIRPoint: {fileID: 3306149574800333154}
   gripperIRPoint: {fileID: 3335226900205065427}
-  maxUSDistance: 5
-  usRayCount: 5
-  usFovDegrees: 30
-  obstacleLayerMask:
-    serializedVersion: 2
-    m_Bits: 128
+  ultrasonicConeAngle: 30
+  ultrasonicRayCount: 5
+  ultrasonicMaxDistance: 5
+  ultrasonicReliableDistance: 2.5
   irObstacleDistance: 0.15
-  irGripperDistance: 0.08
-  ballLayerMask:
-    serializedVersion: 2
-    m_Bits: 256
+  gripperIRDistance: 0.08
+  targetBallTag: TargetBall
 --- !u!114 &343155045744222010
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1277,6 +1274,10 @@ MonoBehaviour:
   motorDeadzone: 10
   minMotorPwm: 35
   maxPwmStep: 15
+  applyTrackFriction: 1
+  trackStaticFriction: 0.9
+  trackDynamicFriction: 0.7
+  trackBounciness: 0
   pwmLeft: 0
   pwmRight: 0
 --- !u!114 &2085775781574909075
@@ -1365,6 +1366,8 @@ MonoBehaviour:
   maxActionLatency: 13
   sensorLatency: 2
   cameraPivotMaxAngle: 45
+  sonarPenaltyThreshold: 0.04
+  maxCameraStepDegrees: 15
 --- !u!114 &4479401334779454422
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1377,14 +1380,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5af813984e979e043842fb1160d123a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SimulatedYoloCamera
-  targetCamera: {fileID: 2640040679113194705}
   targetBall: {fileID: 2321187816488341999}
-  maxViewDistance: 0.6
-  hFov: 40
-  obstacleLayerMask:
+  horizontalFOV: 40
+  maxVisionDistance: 2.5
+  occlusionMask:
     serializedVersion: 2
-    m_Bits: 128
-  targetBallTag: TargetBall
+    m_Bits: 4294967295
+  cameraYawMaxAngle: 45
 --- !u!114 &5747478151184590571
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1402,6 +1404,57 @@ MonoBehaviour:
   maxRows: 2000
   enableEpisodeMetrics: 1
   writeEpisodeCsvLocally: 0
+--- !u!20 &2809496480042006279
+Camera:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2378955254097731838}
+  m_Enabled: 1
+  serializedVersion: 2
+  m_ClearFlags: 1
+  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_projectionMatrixMode: 1
+  m_GateFitMode: 2
+  m_FOVAxisMode: 0
+  m_Iso: 200
+  m_ShutterSpeed: 0.005
+  m_Aperture: 16
+  m_FocusDistance: 10
+  m_FocalLength: 50
+  m_BladeCount: 5
+  m_Curvature: {x: 2, y: 11}
+  m_BarrelClipping: 0.25
+  m_Anamorphism: 0
+  m_SensorSize: {x: 36, y: 24}
+  m_LensShift: {x: 0, y: 0}
+  m_NormalizedViewPortRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  near clip plane: 0.3
+  far clip plane: 1000
+  field of view: 60
+  orthographic: 0
+  orthographic size: 5
+  m_Depth: 0
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_RenderingPath: -1
+  m_TargetTexture: {fileID: 0}
+  m_TargetDisplay: 0
+  m_TargetEye: 3
+  m_HDR: 1
+  m_AllowMSAA: 1
+  m_AllowDynamicResolution: 0
+  m_ForceIntoRT: 0
+  m_OcclusionCulling: 1
+  m_StereoConvergence: 10
+  m_StereoSeparation: 0.022
 --- !u!1 &2949048073568733871
 GameObject:
   m_ObjectHideFlags: 0
@@ -1880,7 +1933,7 @@ Transform:
   m_GameObject: {fileID: 3671411061729707088}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.65, y: 0, z: 2.45}
+  m_LocalPosition: {x: 1.134, y: 0, z: 2.707}
   m_LocalScale: {x: 0.049999997, y: 0.049999997, z: 0.049999997}
   m_ConstrainProportionsScale: 1
   m_Children: []
