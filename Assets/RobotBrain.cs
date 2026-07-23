@@ -50,22 +50,15 @@ public class RobotBrain : Agent
     [SerializeField] private float successReward = 30.0f;
     [SerializeField] private float fallPenalty = 1.0f;
 
-    [Header("9. Награда за тик удержания мяча")]
-    [SerializeField] private float holdingBallReward = 0.2f;
-
-    [Header("10. Настройки спавна мяча (Curriculum Z-Zones)")]
+    [Header("9. Настройки спавна мяча (Финишная Hard-Зона)")]
     [SerializeField] private float spawnMinX = -2.2f;
     [SerializeField] private float spawnMaxX = 2.2f;
-    [SerializeField] private float spawnMinZ_Easy = -0.3f;
-    [SerializeField] private float spawnMaxZ_Easy = 0.5f;
-    [SerializeField] private float spawnMinZ_Medium = 0.5f;
-    [SerializeField] private float spawnMaxZ_Medium = 1.8f;
     [SerializeField] private float spawnMinZ_Hard = 1.8f;
     [SerializeField] private float spawnMaxZ_Hard = 2.5f;
     [SerializeField] private LayerMask spawnCheckLayerMask; 
     [SerializeField] private float ballClearanceRadius = 0.15f;
 
-    [Header("11. Настройки рандомизации препятствий")]
+    [Header("10. Настройки рандомизации препятствий")]
     [Tooltip("Перетащите сюда ваши кубы-препятствия из Арены")]
     [SerializeField] private Transform[] obstacles;
     [Tooltip("Максимальный радиус случайного сдвига препятствия (м)")]
@@ -81,7 +74,6 @@ public class RobotBrain : Agent
     private Vector3 startPosition;
     private Quaternion startRotation;
     private float prevDistanceToBall;
-    private float prevZPosition; // для награды за продвижение по мировой оси +Z (полоса препятствий)
     private float prevGas;
     private float prevSteer;
     private float lastKnownBallAngle;
@@ -175,11 +167,39 @@ public class RobotBrain : Agent
     {
         if (targetBall == null) return;
 
-        // --- КОСТЫЛЬ: Жестко ставим мяч в конец арены (в зону финиша) ---
-        // X = 0 (по центру), Z = 2.5 (далеко впереди). Высота остается стартовой.
-        Vector3 finishLinePos = new Vector3(startBallLocalPosition.x, startBallLocalPosition.y, (spawnMinZ_Hard + spawnMaxZ_Hard) / 2);
-        targetBall.transform.localPosition = finishLinePos;
+        Vector3 finalLocalPos = startBallLocalPosition;
+        bool positionValid = false;
+        int attempts = 0;
+        int maxAttempts = 100;
 
+        float checkRadius = (startBallScale.x * 0.5f) + ballClearanceRadius;
+
+        // Поиск валидной позиции спавна СТРОГО в зоне Hard
+        while (!positionValid && attempts < maxAttempts)
+        {
+            attempts++;
+            float randomX = UnityEngine.Random.Range(spawnMinX, spawnMaxX);
+            float randomZ = UnityEngine.Random.Range(spawnMinZ_Hard, spawnMaxZ_Hard);
+
+            Vector3 proposedLocalPos = new Vector3(randomX, startBallLocalPosition.y, randomZ);
+            Vector3 proposedWorldPos = targetBall.transform.parent != null 
+                ? targetBall.transform.parent.TransformPoint(proposedLocalPos) 
+                : proposedLocalPos;
+
+            Collider[] colliders = Physics.OverlapSphere(proposedWorldPos, checkRadius, spawnCheckLayerMask);
+            if (colliders.Length == 0)
+            {
+                finalLocalPos = proposedLocalPos;
+                positionValid = true;
+            }
+        }
+
+        if (!positionValid)
+        {
+            finalLocalPos = new Vector3(0f, startBallLocalPosition.y, (spawnMinZ_Hard + spawnMaxZ_Hard) / 2f);
+        }
+
+        targetBall.transform.localPosition = finalLocalPos;
         targetBall.mass = startBallMass * (1.0f + UnityEngine.Random.Range(0.0f, 1.0f));
         targetBall.transform.localScale = startBallScale * (1.0f + UnityEngine.Random.Range(-0.2f, 0.2f));
         targetBall.linearVelocity = Vector3.zero;
@@ -229,9 +249,13 @@ public class RobotBrain : Agent
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
 
-        float randomAngle = UnityEngine.Random.Range(-15, 15f);
+        // Симуляция входа из Модели 1: небольшая случайность угла и позиции при спавне
+        float randomAngle = UnityEngine.Random.Range(-25f, 25f);
         Quaternion randomRotation = Quaternion.Euler(0f, startRotation.eulerAngles.y + randomAngle, 0f);
-        transform.SetPositionAndRotation(startPosition, randomRotation);
+        
+        Vector3 randomStartOffset = new Vector3(UnityEngine.Random.Range(-0.3f, 0.3f), 0f, UnityEngine.Random.Range(-0.1f, 0.1f));
+        transform.SetPositionAndRotation(startPosition + transform.TransformDirection(randomStartOffset), randomRotation);
+
         prevGas = 0f;
         prevSteer = 0f;
         lastKnownBallAngle = 0f;
@@ -240,8 +264,6 @@ public class RobotBrain : Agent
 
         if (targetBall != null)
             prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
-
-        prevZPosition = transform.localPosition.z; 
 
         holdTicks = 0;
 
@@ -287,34 +309,30 @@ public class RobotBrain : Agent
             EndEpisode();
             return;
         }
-        
-        bool spottedBallWithYolo = yoloCamera != null && yoloCamera.IsBallVisible;
-        bool reachedFinishLine = targetBall != null && transform.localPosition.z > spawnMinZ_Hard;
 
-        if (reachedFinishLine || spottedBallWithYolo)
+        // 2. Награда за сближение с мячом (Distance Delta)
+        float currentDistance = Vector3.Distance(transform.position, targetBall.position);
+        float deltaDist = prevDistanceToBall - currentDistance;
+
+        bool isCloseBlindZone = currentDistance < 0.6f;
+        if (yoloCamera.IsBallVisible || isCloseBlindZone)
         {
-            AddReward(successReward);
-            LogEpisodeOutcome("success");
-            EndEpisode();
-            return;
+            float rewardScale = currentDistance < nearDistanceThreshold ? distanceRewardNear : distanceRewardFar;
+            rewardDist = deltaDist * rewardScale;
+            AddReward(rewardDist);
+        }
+        prevDistanceToBall = currentDistance;
+
+        // 3. Награда за центрирование (чтобы шасси выравнивалось ровно на мяч при подходе)
+        if (yoloCamera.IsBallVisible && currentDistance < 1.2f)
+        {
+            float maxPivotSpan = Mathf.Max(Mathf.Abs(cameraPivotMinAngle), Mathf.Abs(cameraPivotMaxAngle));
+            float chassisAlignment = 1f - (Mathf.Abs(cameraPivotAngle) / maxPivotSpan);
+            rewardCentering = centeringRewardScale * (1f - Mathf.Abs(yoloCamera.RelativeAngle)) * Mathf.Max(0f, chassisAlignment);
+            AddReward(rewardCentering);
         }
 
-        // --- ГЛАВНЫЙ ДВИГАТЕЛЬ МОДЕЛИ 1: Награда за продвижение сквозь лабиринт ---
-        if (targetBall != null)
-        {
-            float deltaZ = transform.localPosition.z - prevZPosition;
-            
-            // Награждаем строго за честно пройденные метры вперед!
-            if (deltaZ > 0f && deltaZ < 0.5f) 
-            {
-                rewardSearch = deltaZ * 0.5f; 
-                AddReward(rewardSearch);
-            }
-
-            prevZPosition = transform.localPosition.z;
-        }
-
-        // --- ШТРАФЫ ЗА ДИНАМИКУ И СТЕНЫ ---
+        // 4. Штрафы за динамику и столкновения
         float actionMagnitude = Mathf.Abs(gas - prevGas) + Mathf.Abs(steer - prevSteer);
         penaltyAction = -actionRatePenalty * actionMagnitude;
         AddReward(penaltyAction);
@@ -352,7 +370,6 @@ public class RobotBrain : Agent
         stats.Add("ComponentRewards/5_CollisionPenalty", penaltyCollision);
         stats.Add("ComponentRewards/6_BackwardPenalty", penaltyBackward);
         stats.Add("ComponentRewards/7_TimePenalty", penaltyTime);
-        stats.Add("ComponentRewards/8_SearchBonus", rewardSearch);
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -363,15 +380,14 @@ public class RobotBrain : Agent
         // Подмешиваем случайную погрешность в пределах +-5% к нормализованной дистанции
         float noiseUS = Academy.Instance.IsCommunicatorOn ? UnityEngine.Random.Range(-0.05f, 0.05f) : 0f;
         float noisyDistance = Mathf.Clamp01(virtualSensors.USNormalizedDistance + noiseUS);
-        sensor.AddObservation(noisyDistance); // 0 (УЗ дальномер с шумом)
+        sensor.AddObservation(noisyDistance); // 0
 
-        // Боковые ИК датчики оставляем бинарными (1 или 0)
+        // 2. ИК-датчики
         sensor.AddObservation(virtualSensors.LeftIRObstacle); // 1
         sensor.AddObservation(virtualSensors.RightIRObstacle); // 2
         sensor.AddObservation(virtualSensors.GripperIRBallDetected); // 3
 
-        // 2. СИМУЛЯЦИЯ ПОТЕРЬ КАДРОВ YOLO (Burst Dropout)
-        // Если счетчик активен — уменьшаем его на 1 за каждый физический тик
+        // 3. Симуляция потерь кадров YOLO
         if (burstDropoutRemaining > 0) burstDropoutRemaining--;
         // Если робот крутится на месте быстрее 0.5 рад/с — с шансом 15% активируем слепую зону на 5-15 шагов
         else if (Academy.Instance.IsCommunicatorOn && rb != null && rb.angularVelocity.magnitude > 0.5f)
@@ -388,34 +404,47 @@ public class RobotBrain : Agent
         }
 
         lastBallVisible = ballVisible;
-        float ballAngleToChassis = cameraPivotAngle + (ballVisible ? yoloCamera.RelativeAngle * cameraPivotMaxAngle : 0f);
+        float maxPivotSpan = Mathf.Max(Mathf.Abs(cameraPivotMinAngle), Mathf.Abs(cameraPivotMaxAngle));
+        float ballAngleToChassis = cameraPivotAngle + (ballVisible ? yoloCamera.RelativeAngle * maxPivotSpan : 0f);
         lastBallDist = ballVisible ? yoloCamera.NormalizedDistance : 1f;
-        lastBallAngle = Mathf.Clamp(ballAngleToChassis / cameraPivotMaxAngle, -1f, 1f);
+        lastBallAngle = Mathf.Clamp(ballAngleToChassis / maxPivotSpan, -1f, 1f);
+        
         float normalizedPivotAngle = Mathf.InverseLerp(cameraPivotMinAngle, cameraPivotMaxAngle, cameraPivotAngle) * 2f - 1f;
 
-        // Отправляем данные камеры в нейросеть
-        sensor.AddObservation(ballVisible ? yoloCamera.RelativeAngle : 0f); // 4 (угол до мяча)
-        sensor.AddObservation(ballVisible ? yoloCamera.NormalizedDistance : 1f); // 5 (дистанция до мяча)
+        // Отправка данных камеры
+        sensor.AddObservation(ballVisible ? yoloCamera.RelativeAngle : 0f); // 4
+        sensor.AddObservation(ballVisible ? yoloCamera.NormalizedDistance : 1f); // 5
         sensor.AddObservation(lastKnownBallAngle); // 6
         sensor.AddObservation(ballVisible ? 1.0f : 0.0f); // 7
-        sensor.AddObservation(cameraPivotMaxAngle > 0f ? normalizedPivotAngle : 0f); // 8
+        sensor.AddObservation(normalizedPivotAngle); // 8
 
-        // Оставшиеся наблюдения (состояние клешни, смещение, одометрия) отправляем без изменений
+        // Состояние клешни и движение
         sensor.AddObservation(gripperController.IsHolding ? 1f : 0f); // 9
-        sensor.AddObservation(Mathf.DeltaAngle(startRotation.eulerAngles.y, transform.eulerAngles.y) / 180f); // 12
-        sensor.AddObservation(Mathf.Clamp01(rb.linearVelocity.magnitude / 0.5f)); // 13
+        sensor.AddObservation(Mathf.DeltaAngle(startRotation.eulerAngles.y, transform.eulerAngles.y) / 180f); // 10
+        sensor.AddObservation(Mathf.Clamp01(rb.linearVelocity.magnitude / 0.5f)); // 11
         float timeSinceLastDetection = Time.time - lastDetectionTime;
-        sensor.AddObservation(Mathf.Clamp(timeSinceLastDetection, 0f, 10f) / 10f); // 14
+        sensor.AddObservation(Mathf.Clamp(timeSinceLastDetection, 0f, 10f) / 10f); // 12
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
         if(gripperController == null || virtualSensors == null || trackController == null || cameraPivot == null) return;
         
-        // Автозахват оставляем для совместимости, но он больше не триггерит конец эпизода
+        // Автоматическое закрытие клешни при сработке ИК-датчика в клешне
         if (virtualSensors.GripperIRBallDetected > 0.5f)
         {
             gripperController.GripperCloseCommand = true;
+        }
+
+        // ТЕРМИНАЛЬНОЕ УСЛОВИЕ ПОБЕДЫ ДЛЯ МОДЕЛИ 2: Физический захват мяча!
+        if (gripperController.IsHolding)
+        {
+            trackController.GasInput = 0;
+            trackController.SteerInput = 0;
+            AddReward(successReward);
+            LogEpisodeOutcome("success");
+            EndEpisode();
+            return;
         }
 
         float gas, steer, cameraSignal;
@@ -448,9 +477,9 @@ public class RobotBrain : Agent
         trackController.SteerInput = steer;
 
         cameraPivotAngle = Mathf.Clamp(
-        cameraPivotAngle + cameraSignal * cameraPivotSpeed * Time.fixedDeltaTime,
-        cameraPivotMinAngle, 
-        cameraPivotMaxAngle
+            cameraPivotAngle + cameraSignal * cameraPivotSpeed * Time.fixedDeltaTime,
+            cameraPivotMinAngle, 
+            cameraPivotMaxAngle
         );
         cameraPivot.localRotation = Quaternion.Euler(15f, cameraPivotAngle, 0f);
 
@@ -461,7 +490,6 @@ public class RobotBrain : Agent
 
         if (diagLogger != null)
         {
-            // Эвристика IsRetrying оставлена чисто для логера
             bool isRetryingHeuristic = gas < backwardGasThreshold
                 && lastBallDist < nearDistanceThreshold
                 && (Time.time - lastDetectionTime) < 1f;
