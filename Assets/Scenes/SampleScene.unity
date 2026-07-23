@@ -508,6 +508,10 @@ PrefabInstance:
       propertyPath: m_TagString
       value: Wall
       objectReference: {fileID: 0}
+    - target: {fileID: 1677057379135965520, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: turnK
+      value: 0.3
+      objectReference: {fileID: 0}
     - target: {fileID: 1808365377015820750, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: m_LocalScale.x
       value: 7
@@ -531,7 +535,35 @@ PrefabInstance:
     - target: {fileID: 1933567685896319443, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: m_Model
       value: 
-      objectReference: {fileID: 5022602860645237092, guid: 36607020eb967c54ba4158b4f0e8b22f, type: 3}
+      objectReference: {fileID: 0}
+    - target: {fileID: 1933567685896319443, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_BehaviorType
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1933567685896319443, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_BrainParameters.VectorActionSpaceType
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1933567685896319443, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_BrainParameters.VectorObservationSize
+      value: 13
+      objectReference: {fileID: 0}
+    - target: {fileID: 1933567685896319443, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_BrainParameters.VectorActionSize.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1933567685896319443, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: 'm_BrainParameters.VectorActionSize.Array.data[0]'
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 1933567685896319443, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_BrainParameters.m_ActionSpec.BranchSizes.Array.size
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2085775781574909075, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2949048073568733871, guid: 6719a1e8f242cc84fa82a2d54f9dbc2e, type: 3}
       propertyPath: m_Name
       value: Obstacle3

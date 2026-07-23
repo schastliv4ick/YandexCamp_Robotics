@@ -29,8 +29,7 @@ public class RobotManualTester : MonoBehaviour
             if (keyboard.dKey.isPressed) steer += 1f;
 
             // Записываем команды ввода в свойства контроллера
-            trackController.GasInput = gas;
-            trackController.SteerInput = steer;
+            trackController.Move(gas, steer);
         }
 
         // 2. Тест клешни (Зажмите Пробел, чтобы попытаться схватить мяч)

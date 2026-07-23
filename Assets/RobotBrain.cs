@@ -274,10 +274,6 @@ public class RobotBrain : Agent
         // --- 10: клешня ---
         sensor.AddObservation(gripperController != null && gripperController.IsHolding ? 1f : 0f);
 
-        // --- 11-12: смещение от старта ---
-        Vector3 displacement = transform.position - startPosition;
-        sensor.AddObservation(Mathf.Clamp(displacement.x / 3f, -1f, 1f));
-        sensor.AddObservation(Mathf.Clamp(displacement.z / 3f, -1f, 1f));
 
         // --- 13: курс ---
         sensor.AddObservation(transform.eulerAngles.y / 360f);
