@@ -175,11 +175,42 @@ public class RobotBrain : Agent
     {
         if (targetBall == null) return;
 
-        // --- КОСТЫЛЬ: Жестко ставим мяч в конец арены (в зону финиша) ---
-        // X = 0 (по центру), Z = 2.5 (далеко впереди). Высота остается стартовой.
-        Vector3 finishLinePos = new Vector3(startBallLocalPosition.x, startBallLocalPosition.y, (spawnMinZ_Hard + spawnMaxZ_Hard) / 2);
-        targetBall.transform.localPosition = finishLinePos;
+        Vector3 finalLocalPos = startBallLocalPosition;
+        bool positionValid = false;
+        int attempts = 0;
+        int maxAttempts = 100;
 
+        float checkRadius = (startBallScale.x * 0.5f) + ballClearanceRadius;
+
+        while (!positionValid && attempts < maxAttempts)
+        {
+            attempts++;
+
+            float randomX = UnityEngine.Random.Range(spawnMinX, spawnMaxX);
+            // Спавн мяча СТРОГО в диапазоне Z для Hard-зоны
+            float randomZ = UnityEngine.Random.Range(spawnMinZ_Hard, spawnMaxZ_Hard);
+
+            Vector3 proposedLocalPos = new Vector3(randomX, startBallLocalPosition.y, randomZ);
+            Vector3 proposedWorldPos = targetBall.transform.parent != null 
+                ? targetBall.transform.parent.TransformPoint(proposedLocalPos) 
+                : proposedLocalPos;
+
+            // Проверяем, что мяч не заспавнился внутри стены или куба
+            Collider[] colliders = Physics.OverlapSphere(proposedWorldPos, checkRadius, spawnCheckLayerMask);
+            if (colliders.Length == 0)
+            {
+                finalLocalPos = proposedLocalPos;
+                positionValid = true;
+            }
+        }
+
+        if (!positionValid)
+        {
+            // Запасной вариант: по центру Hard-зоны
+            finalLocalPos = new Vector3(0f, startBallLocalPosition.y, (spawnMinZ_Hard + spawnMaxZ_Hard) / 2f);
+        }
+
+        targetBall.transform.localPosition = finalLocalPos;
         targetBall.mass = startBallMass * (1.0f + UnityEngine.Random.Range(0.0f, 1.0f));
         targetBall.transform.localScale = startBallScale * (1.0f + UnityEngine.Random.Range(-0.2f, 0.2f));
         targetBall.linearVelocity = Vector3.zero;

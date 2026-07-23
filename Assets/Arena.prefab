@@ -1366,6 +1366,7 @@ MonoBehaviour:
   cameraPivot: {fileID: 6536664849807711173}
   targetBall: {fileID: 1148007984975919098}
   fallHeightThreshold: -1
+  cameraPivotMinAngle: -80
   cameraPivotMaxAngle: 45
   cameraPivotSpeed: 30
   distanceRewardFar: 0.05
@@ -1398,10 +1399,6 @@ MonoBehaviour:
   - {fileID: 3292859895171388888}
   - {fileID: 5975729531120417630}
   - {fileID: 6237572611183234626}
-  - {fileID: 1808365377015820750}
-  - {fileID: 812579243132879834}
-  - {fileID: 8535434055629854962}
-  - {fileID: 4258478052050481710}
   - {fileID: 2331322056814921538}
   obstacleOffsetRange: 0.3
 --- !u!114 &4479401334779454422
@@ -2014,7 +2011,7 @@ Transform:
   m_GameObject: {fileID: 3671411061729707088}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.237, y: 0, z: 3.121}
+  m_LocalPosition: {x: -0.5, y: 0, z: 3.121}
   m_LocalScale: {x: 0.049999997, y: 0.049999997, z: 0.049999997}
   m_ConstrainProportionsScale: 1
   m_Children: []
