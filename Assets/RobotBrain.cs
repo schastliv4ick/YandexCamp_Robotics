@@ -19,7 +19,8 @@ public class RobotBrain : Agent
 
     [Header("Settings")]
     [SerializeField] private float fallHeightThreshold = -1f;
-    [SerializeField] private float cameraPivotMaxAngle = 45f;
+    [SerializeField] private float cameraPivotMinAngle = -80f;
+    [SerializeField] private float cameraPivotMaxAngle = 20f;
     [SerializeField] private float cameraPivotSpeed = 60f;
 
     [Header("Rewards")]
@@ -390,13 +391,14 @@ public class RobotBrain : Agent
         float ballAngleToChassis = cameraPivotAngle + (ballVisible ? yoloCamera.RelativeAngle * cameraPivotMaxAngle : 0f);
         lastBallDist = ballVisible ? yoloCamera.NormalizedDistance : 1f;
         lastBallAngle = Mathf.Clamp(ballAngleToChassis / cameraPivotMaxAngle, -1f, 1f);
+        float normalizedPivotAngle = Mathf.InverseLerp(cameraPivotMinAngle, cameraPivotMaxAngle, cameraPivotAngle) * 2f - 1f;
 
         // Отправляем данные камеры в нейросеть
         sensor.AddObservation(ballVisible ? yoloCamera.RelativeAngle : 0f); // 4 (угол до мяча)
         sensor.AddObservation(ballVisible ? yoloCamera.NormalizedDistance : 1f); // 5 (дистанция до мяча)
         sensor.AddObservation(lastKnownBallAngle); // 6
         sensor.AddObservation(ballVisible ? 1.0f : 0.0f); // 7
-        sensor.AddObservation(cameraPivotMaxAngle > 0f ? cameraPivotAngle / cameraPivotMaxAngle : 0f); // 8
+        sensor.AddObservation(cameraPivotMaxAngle > 0f ? normalizedPivotAngle : 0f); // 8
 
         // Оставшиеся наблюдения (состояние клешни, смещение, одометрия) отправляем без изменений
         sensor.AddObservation(gripperController.IsHolding ? 1f : 0f); // 9
@@ -445,8 +447,11 @@ public class RobotBrain : Agent
         trackController.GasInput = gas;
         trackController.SteerInput = steer;
 
-        cameraPivotAngle = Mathf.Clamp(cameraPivotAngle + cameraSignal * cameraPivotSpeed * Time.fixedDeltaTime,
-            -cameraPivotMaxAngle, cameraPivotMaxAngle);
+        cameraPivotAngle = Mathf.Clamp(
+        cameraPivotAngle + cameraSignal * cameraPivotSpeed * Time.fixedDeltaTime,
+        cameraPivotMinAngle, 
+        cameraPivotMaxAngle
+        );
         cameraPivot.localRotation = Quaternion.Euler(15f, cameraPivotAngle, 0f);
 
         CalculateRewards(gas, steer);
