@@ -319,10 +319,13 @@ public class RobotBrain : Agent
             return;
         }
         
-        bool spottedBallWithYolo = yoloCamera != null && yoloCamera.IsBallVisible;
-        bool reachedFinishLine = targetBall != null && transform.localPosition.z > spawnMinZ_Hard;
+        float distToBall = targetBall != null ? Vector3.Distance(transform.position, targetBall.position) : 999f;
+        bool spottedBallNear = yoloCamera != null && yoloCamera.IsBallVisible && distToBall < 1.2f;
 
-        if (reachedFinishLine || spottedBallWithYolo)
+        // 2. Или честное пересечение финишной линии по локальной оси Z
+        bool reachedFinishLine = transform.localPosition.z > spawnMinZ_Hard;
+
+        if (reachedFinishLine || spottedBallNear)
         {
             AddReward(successReward);
             LogEpisodeOutcome("success");
