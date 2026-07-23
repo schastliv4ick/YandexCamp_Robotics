@@ -172,17 +172,17 @@ public class RobotBrain : Agent
 
     public void ResetBall()
     {
-        // if (targetBall == null) return;
+        if (targetBall == null) return;
 
-        // // --- КОСТЫЛЬ: Жестко ставим мяч в конец арены (в зону финиша) ---
-        // // X = 0 (по центру), Z = 2.5 (далеко впереди). Высота остается стартовой.
-        // Vector3 finishLinePos = new Vector3(startBallLocalPosition.x, startBallLocalPosition.y, (spawnMinZ_Hard + spawnMaxZ_Hard)/ 2);
-        // targetBall.transform.localPosition = finishLinePos;
+        // --- КОСТЫЛЬ: Жестко ставим мяч в конец арены (в зону финиша) ---
+        // X = 0 (по центру), Z = 2.5 (далеко впереди). Высота остается стартовой.
+        Vector3 finishLinePos = new Vector3(startBallLocalPosition.x, startBallLocalPosition.y, (spawnMinZ_Hard + spawnMaxZ_Hard) / 2);
+        targetBall.transform.localPosition = finishLinePos;
 
-        // targetBall.mass = startBallMass * (1.0f + UnityEngine.Random.Range(0.0f, 1.0f));
-        // targetBall.transform.localScale = startBallScale * (1.0f + UnityEngine.Random.Range(-0.2f, 0.2f));
-        // targetBall.linearVelocity = Vector3.zero;
-        // targetBall.angularVelocity = Vector3.zero;
+        targetBall.mass = startBallMass * (1.0f + UnityEngine.Random.Range(0.0f, 1.0f));
+        targetBall.transform.localScale = startBallScale * (1.0f + UnityEngine.Random.Range(-0.2f, 0.2f));
+        targetBall.linearVelocity = Vector3.zero;
+        targetBall.angularVelocity = Vector3.zero;
     }
 
     public override void OnEpisodeBegin()
@@ -240,7 +240,7 @@ public class RobotBrain : Agent
         if (targetBall != null)
             prevDistanceToBall = Vector3.Distance(transform.position, targetBall.position);
 
-        prevZPosition = transform.position.z;
+        prevZPosition = transform.localPosition.z; 
 
         holdTicks = 0;
 
@@ -286,9 +286,11 @@ public class RobotBrain : Agent
             EndEpisode();
             return;
         }
+        
+        bool spottedBallWithYolo = yoloCamera != null && yoloCamera.IsBallVisible;
+        bool reachedFinishLine = targetBall != null && transform.localPosition.z > spawnMinZ_Hard;
 
-        // --- УСЛОВИЕ ПОБЕДЫ МОДЕЛИ 1: Робот пересек линию финиша (Z мяча) ---
-        if (targetBall != null && transform.position.z > spawnMinZ_Hard)
+        if (reachedFinishLine || spottedBallWithYolo)
         {
             AddReward(successReward);
             LogEpisodeOutcome("success");
@@ -299,7 +301,7 @@ public class RobotBrain : Agent
         // --- ГЛАВНЫЙ ДВИГАТЕЛЬ МОДЕЛИ 1: Награда за продвижение сквозь лабиринт ---
         if (targetBall != null)
         {
-            float deltaZ = transform.position.z - prevZPosition;
+            float deltaZ = transform.localPosition.z - prevZPosition;
             
             // Награждаем строго за честно пройденные метры вперед!
             if (deltaZ > 0f && deltaZ < 0.5f) 
@@ -308,7 +310,7 @@ public class RobotBrain : Agent
                 AddReward(rewardSearch);
             }
 
-            prevZPosition = transform.position.z;
+            prevZPosition = transform.localPosition.z;
         }
 
         // --- ШТРАФЫ ЗА ДИНАМИКУ И СТЕНЫ ---
