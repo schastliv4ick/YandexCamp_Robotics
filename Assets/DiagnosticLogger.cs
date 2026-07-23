@@ -35,7 +35,7 @@ public class DiagnosticLogger : MonoBehaviour
     public bool enableEpisodeMetrics = true;
     [Tooltip("CSV по эпизодам пишем ТОЛЬКО при локальном одиночном прогоне. " +
              "В облаке (--num-envs>1) выключайте — TensorBoard всё равно получит метрику через StatsRecorder.")]
-    public bool writeEpisodeCsvLocally = true;
+    public bool writeEpisodeCsvLocally = false;
 
     private StreamWriter stepWriter;
     private int rowsWritten = 0;
@@ -47,6 +47,14 @@ public class DiagnosticLogger : MonoBehaviour
 
     void Start()
     {
+        // Автоматически отключаем файловое логирование при параллельных средах
+        if (Academy.Instance.IsCommunicatorOn && (enableLogging || writeEpisodeCsvLocally))
+        {
+            Debug.LogWarning("[DiagnosticLogger] Обнаружено обучение с communicator. " +
+                "Автоматически отключаю CSV-логирование для избежания конфликтов.");
+            enableLogging = false;
+            writeEpisodeCsvLocally = false;
+        }
         startTime = Time.time;
 
         if (enableLogging)
