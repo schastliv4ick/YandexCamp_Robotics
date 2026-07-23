@@ -63,6 +63,7 @@ public class RobotBrain : Agent
     [SerializeField] private Transform[] obstacles;
     [Tooltip("Максимальный радиус случайного сдвига препятствия (м)")]
     [SerializeField] private float obstacleOffsetRange = 0.3f;
+    [SerializeField] private float robotClearanceRadius = 0.35f; // Радиус проверки, чтобы робот не заспавнился внутри куба
 
     private Queue<float[]> actionBuffer = new Queue<float[]>();
     private int currentActionLatency = 5;
@@ -163,6 +164,48 @@ public class RobotBrain : Agent
         }
     }
 
+    private void ResetRobotPosition()
+    {
+        Vector3 startLocalPos = transform.parent != null ? transform.parent.InverseTransformPoint(startPosition) : startPosition;
+        Vector3 finalWorldPos = startPosition;
+        bool positionValid = false;
+        int attempts = 0;
+        int maxAttempts = 50;
+
+        // Ищем свободное место по всей ширине линии старта
+        while (!positionValid && attempts < maxAttempts)
+        {
+            attempts++;
+
+            // Спавн от spawnMinX до spawnMaxX (с отступом 0.3м от боковых стен)
+            float randomX = UnityEngine.Random.Range(spawnMinX + 0.3f, spawnMaxX - 0.3f);
+            float randomZ = startLocalPos.z + UnityEngine.Random.Range(-0.15f, 0.15f);
+
+            Vector3 proposedLocalPos = new Vector3(randomX, startLocalPos.y, randomZ);
+            Vector3 proposedWorldPos = transform.parent != null 
+                ? transform.parent.TransformPoint(proposedLocalPos) 
+                : proposedLocalPos;
+
+            // Проверяем, не пересекаемся ли с кубами
+            Collider[] colliders = Physics.OverlapSphere(proposedWorldPos, robotClearanceRadius, spawnCheckLayerMask);
+            if (colliders.Length == 0)
+            {
+                finalWorldPos = proposedWorldPos;
+                positionValid = true;
+            }
+        }
+
+        if (!positionValid)
+        {
+            finalWorldPos = startPosition;
+        }
+
+        float randomAngle = UnityEngine.Random.Range(-30f, 30f);
+        Quaternion randomRotation = Quaternion.Euler(0f, startRotation.eulerAngles.y + randomAngle, 0f);
+
+        transform.SetPositionAndRotation(finalWorldPos, randomRotation);
+    }
+
     public void ResetBall()
     {
         if (targetBall == null) return;
@@ -228,7 +271,7 @@ public class RobotBrain : Agent
         }
 
         ResetBall();
-
+        ResetRobotPosition();
         if (Academy.Instance.IsCommunicatorOn)
         {
             if (rb != null)
