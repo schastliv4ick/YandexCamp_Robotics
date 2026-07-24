@@ -340,6 +340,61 @@ Transform:
   m_Children: []
   m_Father: {fileID: 897449674108940850}
   m_LocalEulerAnglesHint: {x: 0, y: 135, z: 0}
+--- !u!1 &431680327717233787
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2663740642241327735}
+  - component: {fileID: 3067570095430755434}
+  m_Layer: 0
+  m_Name: debugGUI
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2663740642241327735
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 431680327717233787}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8657947826623517013}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3067570095430755434
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 431680327717233787}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7a0b786e63bc29488bbdc813e987b87, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RobotDebugGUI
+  robotBrain: {fileID: 5633701245493237200}
+  showOnStart: 1
+  toggleKey: 293
+  fontSize: 14
+  windowWidth: 380
+  windowHeight: 700
+  displayUpdateInterval: 0.2
+  sensorActiveThreshold: 0.5
+  showRawRosSensorPacket: 1
+  logSensorsToConsole: 0
+  consoleLogInterval: 1
 --- !u!1 &758303490316497446
 GameObject:
   m_ObjectHideFlags: 0
@@ -1158,6 +1213,7 @@ GameObject:
   - component: {fileID: 5633701245493237200}
   - component: {fileID: 4479401334779454422}
   - component: {fileID: 5747478151184590571}
+  - component: {fileID: 2126210169642362321}
   m_Layer: 0
   m_Name: Robot
   m_TagString: Untagged
@@ -1174,7 +1230,7 @@ Transform:
   m_GameObject: {fileID: 2378955254097731838}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.29, y: -0.14313, z: -1}
+  m_LocalPosition: {x: 0.94, y: -0.14313, z: -1.71}
   m_LocalScale: {x: 0.0862069, y: 0.0862069, z: 0.0862069}
   m_ConstrainProportionsScale: 1
   m_Children:
@@ -1295,6 +1351,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RobotManualTester
   trackController: {fileID: 1677057379135965520}
   gripperController: {fileID: 343155045744222010}
+  rosBridge: {fileID: 3436892182010424528}
 --- !u!114 &1933567685896319443
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1317,10 +1374,10 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: 061924b756ea02147baa69713e327f2f, type: 3}
+  m_Model: {fileID: 5022602860645237092, guid: 566773b3c20b00b49a54fa48e5c452ef, type: 3}
   m_InferenceDevice: 0
   m_BehaviorType: 0
-  m_BehaviorName: GFSX_Brain
+  m_BehaviorName: forward
   TeamId: 0
   m_UseChildSensors: 1
   m_UseChildActuators: 1
@@ -1357,6 +1414,21 @@ MonoBehaviour:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
   MaxStep: 2000
+  useRealRobot: 1
+  rosBridge: {fileID: 3436892182010424528}
+  realVision: {fileID: 2126210169642362321}
+  imageWidthPixels: 640
+  focalLengthPx: 500
+  realBallDiameterMeters: 0.05
+  cameraHeightMeters: 0.196
+  distanceScale: 1
+  distanceOffsetMeters: 0
+  maxDetectionDistance: 3
+  minimumVisionConfidence: 0.2
+  distanceSmoothingFactor: 0.35
+  distanceFilterResetSeconds: 0.75
+  calibrationKnownDistanceMeters: 0.55
+  requiredGripperDetectionTicks: 3
   trackController: {fileID: 1677057379135965520}
   gripperController: {fileID: 343155045744222010}
   virtualSensors: {fileID: 8740193334231164096}
@@ -1366,6 +1438,38 @@ MonoBehaviour:
   fallHeightThreshold: -1
   cameraPivotMaxAngle: 45
   cameraPivotSpeed: 60
+  ballVisibleConfirmationSeconds: 1
+  navigationHandoffReward: 1
+  pickupLostBallTimeoutSeconds: 1.5
+  pickupAimOffsetNormalized: -0.105
+  pickupCenterDeadZone: 0.02
+  pickupFullSteerError: 0.15
+  pickupMinimumSteer: 0.07
+  pickupSteerDirection: 1
+  pickupMaximumSteer: 0.522
+  pickupErrorFilterTime: 0.06
+  pickupApproachEnterError: 0.045
+  pickupApproachExitError: 0.085
+  pickupCenteredHoldSeconds: 0.25
+  pickupCameraReadyToleranceDegrees: 2
+  pickupCameraReadyHoldSeconds: 0.15
+  pickupMaximumForward: 0.18
+  pickupMinimumForward: 0.035
+  pickupSlowDistanceMeters: 0.5
+  pickupCloseDistanceMeters: 0.11
+  allowDistanceTriggeredGrasp: 0
+  pickupGasSmoothTime: 0.3
+  pickupSteerSmoothTime: 0.08
+  pickupCameraCenterSpeedDegrees: 30
+  pickupUseUltrasonicEmergencyStop: 0
+  pickupUltrasonicStopDistance: 0.03
+  gripperDetectionThreshold: 0.307
+  graspTimeoutSeconds: 2
+  holdingConfirmationSeconds: 0.8
+  holdingLossGraceSeconds: 0.2
+  gripperOpenCommand: 1
+  gripperCloseCommand: 2
+  endEpisodeOnPickupComplete: 0
   distanceRewardFar: 0.05
   distanceRewardNear: 0.15
   nearDistanceThreshold: 0.5
@@ -1402,6 +1506,20 @@ MonoBehaviour:
   - {fileID: 8535434055629854962}
   - {fileID: 4258478052050481710}
   obstacleOffsetRange: 0.3
+  currentTaskState: 0
+  ballVisibleDuration: 0
+  pickupBallLostDuration: 0
+  graspDuration: 0
+  holdingDuration: 0
+  holdingLostDuration: 0
+  pickupRawHorizontalError: 0
+  pickupFilteredHorizontalError: 0
+  pickupAlignedDuration: 0
+  pickupCameraReadyDuration: 0
+  pickupCameraReady: 0
+  pickupApproachEnabled: 0
+  rawComputedDistance: -1
+  lastComputedDistance: -1
 --- !u!114 &4479401334779454422
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1416,7 +1534,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SimulatedYoloCamera
   targetCamera: {fileID: 2640040679113194705}
   targetBall: {fileID: 2321187816488341999}
-  maxViewDistance: 0.6
+  maxViewDistance: 1
   hFov: 40
   obstacleLayerMask:
     serializedVersion: 2
@@ -1439,6 +1557,109 @@ MonoBehaviour:
   maxRows: 2000
   enableEpisodeMetrics: 1
   writeEpisodeCsvLocally: 0
+--- !u!114 &2126210169642362321
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2378955254097731838}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04052e4d603a107448dd787a76bf3b93, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RealVision
+  udpPort: 5005
+  packetTimeoutSeconds: 0.5
+  useYOLO: 0
+  seesBall: 0
+  confidence: 0
+  normalizedAngle: 0
+  normalizedDistance: 0
+  ballWidth: 0
+  ballHeight: 0
+  normalizedCenterX: 0.5
+  normalizedCenterY: 0
+  boundingBoxClipped: 0
+  frameWidthPixels: 0
+  frameHeightPixels: 0
+  lastPacketSequence: -1
+--- !u!1 &2484163032769585991
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5725973885284614011}
+  - component: {fileID: 3436892182010424528}
+  - component: {fileID: 1366568496861529420}
+  m_Layer: 0
+  m_Name: bridge
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5725973885284614011
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2484163032769585991}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8657947826623517013}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3436892182010424528
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2484163032769585991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4fd747a8a78ad4944836621792ce7dba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ROSBridge
+  rosIPAddress: 192.168.2.156
+  rosPort: 10000
+  cmdVelTopic: /cmd_vel
+  gripperTopic: /cmd_gripper
+  cameraTopic: /cmd_camera_pan
+  sensorTopic: /sensor/data
+  maxLinearSpeed: 0.5
+  maxAngularSpeed: 1
+  cameraSmoothTime: 0.25
+--- !u!114 &1366568496861529420
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2484163032769585991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7acef0b79454c9b4dae3f8139bc4ba77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Robotics.ROSTCPConnector::Unity.Robotics.ROSTCPConnector.ROSConnection
+  m_RosIPAddress: 192.168.2.156
+  m_RosPort: 10000
+  m_ConnectOnStart: 1
+  m_KeepaliveTime: 1
+  m_NetworkTimeoutSeconds: 2
+  m_SleepTimeSeconds: 0.01
+  m_ShowHUD: 1
+  m_TFTopics:
+  - /tf
+  listenForTFMessages: 1
 --- !u!1 &2949048073568733871
 GameObject:
   m_ObjectHideFlags: 0
@@ -1684,6 +1905,8 @@ Transform:
   - {fileID: 8535434055629854962}
   - {fileID: 4258478052050481710}
   - {fileID: 2331322056814921538}
+  - {fileID: 5725973885284614011}
+  - {fileID: 2663740642241327735}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3359653952205779914
@@ -1917,7 +2140,7 @@ Transform:
   m_GameObject: {fileID: 3671411061729707088}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.65, y: 0, z: 2.45}
+  m_LocalPosition: {x: 0.417, y: 0, z: -0.822}
   m_LocalScale: {x: 0.049999997, y: 0.049999997, z: 0.049999997}
   m_ConstrainProportionsScale: 1
   m_Children: []

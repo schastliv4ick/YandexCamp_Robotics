@@ -4,8 +4,8 @@ using RosMessageTypes.Geometry;
 using RosMessageTypes.Std;
 
 /// <summary>
-/// ROS-мост для связи с роботом. Предоставляет API для публикации команд 
-/// и получения данных с датчиков. Всё управление вынесено в отдельные скрипты.
+/// ROS transport for drive, gripper, camera pan and sensor feedback.
+/// RobotBrain owns task logic; this component only transports commands and data.
 /// </summary>
 public class ROSBridge : MonoBehaviour
 {
@@ -20,48 +20,49 @@ public class ROSBridge : MonoBehaviour
     [SerializeField] private string sensorTopic = "/sensor/data";
 
     [Header("Speed Limits")]
-    [SerializeField] private float maxLinearSpeed = 0.5f;
-    [SerializeField] private float maxAngularSpeed = 1.0f;
+    [SerializeField, Min(0f)] private float maxLinearSpeed = 0.5f;
+    [SerializeField, Min(0f)] private float maxAngularSpeed = 1.0f;
 
     [Header("Camera Smoothing")]
-    [SerializeField] private float cameraSmoothSpeed = 3.0f;
+    [SerializeField, Min(0.01f)] private float cameraSmoothTime = 0.25f;
 
     private ROSConnection ros;
-    private bool isConnected = false;
+    private bool isConnected;
+    private bool hasSensorData;
 
-    // Текущее и целевое положение камеры (для плавного движения)
-    private float currentCameraAngle = 0f;
-    private float targetCameraAngle = 0f;
-
-    // Последние полученные данные с датчиков
+    private float currentCameraAngle;
+    private float targetCameraAngle;
+    private float cameraVelocity;
+    private int lastGripperValue = int.MinValue;
     private QuaternionMsg lastSensorData;
 
-    // Флаг для предотвращения повторной публикации одной и той же команды клешни
-    private int lastGripperValue = -1;
-
     public bool IsConnected => isConnected;
+    public bool HasSensorData => hasSensorData;
+    public float CurrentCameraNormalizedAngle => currentCameraAngle;
+    public float TargetCameraNormalizedAngle => targetCameraAngle;
+    public int LastGripperCommand => lastGripperValue;
 
-    void Start()
+    private void Start()
     {
-        InitializeROS();
         currentCameraAngle = 0f;
         targetCameraAngle = 0f;
+        InitializeROS();
     }
 
-    void Update()
+    private void Update()
     {
-        // Плавное движение камеры к заданной цели
-        if (Mathf.Abs(currentCameraAngle - targetCameraAngle) > 0.001f)
-        {
-            currentCameraAngle = Mathf.Lerp(currentCameraAngle, targetCameraAngle, Time.deltaTime * cameraSmoothSpeed);
+        float previousAngle = currentCameraAngle;
+        currentCameraAngle = Mathf.SmoothDamp(
+            currentCameraAngle,
+            targetCameraAngle,
+            ref cameraVelocity,
+            Mathf.Max(0.01f, cameraSmoothTime),
+            Mathf.Infinity,
+            Time.deltaTime);
+
+        currentCameraAngle = Mathf.Clamp(currentCameraAngle, -1f, 1f);
+        if (Mathf.Abs(currentCameraAngle - previousAngle) > 0.0001f)
             PublishCameraRaw(currentCameraAngle);
-        }
-    }
-
-    void OnDestroy()
-    {
-        // При необходимости – экстренная остановка
-        // EmergencyStop();
     }
 
     private void InitializeROS()
@@ -72,38 +73,33 @@ public class ROSBridge : MonoBehaviour
             ros.RosIPAddress = rosIPAddress;
             ros.RosPort = rosPort;
 
-            // Регистрируем издателей
             ros.RegisterPublisher<TwistMsg>(cmdVelTopic);
             ros.RegisterPublisher<Int32Msg>(gripperTopic);
             ros.RegisterPublisher<Float32Msg>(cameraTopic);
-
-            // Подписываемся на датчики
             ros.Subscribe<QuaternionMsg>(sensorTopic, SensorCallback);
 
             isConnected = true;
-            Debug.Log($"[ROSBridge] Подключено к ROS {rosIPAddress}:{rosPort}");
+            Debug.Log($"[ROSBridge] ROS transport initialized for {rosIPAddress}:{rosPort}.");
         }
-        catch (System.Exception e)
+        catch (System.Exception exception)
         {
             isConnected = false;
-            Debug.LogError($"[ROSBridge] Ошибка инициализации: {e.Message}");
+            Debug.LogError($"[ROSBridge] Initialization failed: {exception.Message}");
         }
     }
 
-    // ===== Публичные методы для управления =====
-
     /// <summary>
-    /// Публикует команду движения (линейная и угловая скорость).
-    /// Значения нормализуются в диапазоне [-1; 1].
+    /// Publishes normalized drive commands. linear and angular are clamped to [-1, 1].
     /// </summary>
     public void PublishDrive(float linear, float angular)
     {
-        if (!isConnected || ros == null) return;
+        if (!isConnected || ros == null)
+            return;
 
         linear = Mathf.Clamp(linear, -1f, 1f);
         angular = Mathf.Clamp(angular, -1f, 1f);
 
-        TwistMsg msg = new TwistMsg
+        TwistMsg message = new TwistMsg
         {
             linear = new Vector3Msg { x = linear * maxLinearSpeed },
             angular = new Vector3Msg { z = angular * maxAngularSpeed }
@@ -111,88 +107,80 @@ public class ROSBridge : MonoBehaviour
 
         try
         {
-            ros.Publish(cmdVelTopic, msg);
+            ros.Publish(cmdVelTopic, message);
         }
-        catch (System.Exception e)
+        catch (System.Exception exception)
         {
-            Debug.LogError($"[ROSBridge] Ошибка публикации cmd_vel: {e.Message}");
+            Debug.LogError($"[ROSBridge] cmd_vel publish failed: {exception.Message}");
         }
     }
 
     /// <summary>
-    /// Публикует команду для клешни.
+    /// Publishes a gripper command only when its value changes.
     /// </summary>
     public void PublishGripper(int value)
     {
-        if (!isConnected || ros == null) return;
-        if (value == lastGripperValue) return; // предотвращаем дублирование
+        if (!isConnected || ros == null)
+            return;
+        if (value == lastGripperValue)
+            return;
 
-        lastGripperValue = value;
         try
         {
             ros.Publish(gripperTopic, new Int32Msg { data = value });
-            Debug.Log($"[ROSBridge] Gripper: {value}");
+            lastGripperValue = value;
+            Debug.Log($"[ROSBridge] Gripper command: {value}");
         }
-        catch (System.Exception e)
+        catch (System.Exception exception)
         {
-            Debug.LogError($"[ROSBridge] Ошибка публикации gripper: {e.Message}");
+            Debug.LogError($"[ROSBridge] Gripper publish failed: {exception.Message}");
         }
     }
 
     /// <summary>
-    /// Устанавливает целевой угол камеры (диапазон -1..1).
-    /// Движение будет плавным за счёт Update().
+    /// Sets a normalized camera-pan target. Smoothing is applied in Update().
     /// </summary>
-    public void PublishCamera(float angle)
+    public void PublishCamera(float normalizedAngle)
     {
-        if (!isConnected || ros == null) return;
-        targetCameraAngle = Mathf.Clamp(angle, -1f, 1f);
+        targetCameraAngle = Mathf.Clamp(normalizedAngle, -1f, 1f);
     }
 
-    /// <summary>
-    /// Возвращает последние полученные данные с датчиков.
-    /// Если данных ещё нет, возвращает null.
-    /// </summary>
     public QuaternionMsg GetSensorData()
     {
         return lastSensorData;
     }
 
-    /// <summary>
-    /// Экстренная остановка всех движений.
-    /// </summary>
     public void EmergencyStop()
     {
         PublishDrive(0f, 0f);
-        PublishGripper(0);
-        Debug.LogWarning("[ROSBridge] ⚠️ АВАРИЙНАЯ ОСТАНОВКА");
+        targetCameraAngle = currentCameraAngle;
+        Debug.LogWarning("[ROSBridge] Emergency drive stop published.");
     }
 
-    // ===== Приватные методы =====
-
-    /// <summary>
-    /// Прямая публикация текущего угла камеры (используется внутри для плавного движения).
-    /// </summary>
-    private void PublishCameraRaw(float angle)
+    private void PublishCameraRaw(float normalizedAngle)
     {
-        if (!isConnected || ros == null) return;
+        if (!isConnected || ros == null)
+            return;
+
         try
         {
-            ros.Publish(cameraTopic, new Float32Msg(angle));
+            ros.Publish(cameraTopic, new Float32Msg { data = normalizedAngle });
         }
-        catch (System.Exception e)
+        catch (System.Exception exception)
         {
-            Debug.LogError($"[ROSBridge] Ошибка публикации camera: {e.Message}");
+            Debug.LogError($"[ROSBridge] Camera publish failed: {exception.Message}");
         }
     }
 
-    /// <summary>
-    /// Колбэк для получения данных с датчиков.
-    /// </summary>
-    private void SensorCallback(QuaternionMsg msg)
+    private void SensorCallback(QuaternionMsg message)
     {
-        lastSensorData = msg;
-        // Для отладки можно раскомментировать:
-        // Debug.Log($"UZ: {msg.x * 100:F1} см, IR_L: {msg.y}, IR_R: {msg.z}, GripperIR: {msg.w}");
+        lastSensorData = message;
+        hasSensorData = true;
+    }
+
+    private void OnDestroy()
+    {
+        if (isConnected)
+            PublishDrive(0f, 0f);
     }
 }
